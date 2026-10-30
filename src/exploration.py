@@ -26,7 +26,7 @@ print(df.shape)                # lignes et colonnes, (9879, 40)
 #print(df["gameId"].duplicated().sum())   # Somme de toute les partie dupliquer, 0 
 
 #print(df["blueWins"])                   # La collone blueWins associer a leur ligne.  blueWins, 9879, int64
-#print(df["blueWins"].value_counts(normalize=True))   # proportion de win/loss, 0/1, float64
+print(df["blueWins"].value_counts(normalize=True))   # proportion de win/loss, 0/1, float64
 
 #print(df.describe())        #Count, mean, std, min , max, 25%, 50%, 75% pour chaque colonnes
 print(df.describe().T)          # la trasposée de lautes en haut. 

@@ -10,4 +10,13 @@
 | Technologie d'interface | *(ex. : Tkinter, Streamlit, Gradio)* | *(à compléter, avec justification)* | *(...)* |
 | Nettoyage des données | *(colonnes à garder ou retirer)* | *(ex. : retrait de `gameId`, gestion des colonnes redondantes)* | *(...)* |
 
-1.
+
+
+## Détail : colonnes retirées lors du nettoyage
+
+| Colonnes retirées | Raison | Comment vérifié |
+|---|---|---|
+| `gameId` | Identifiant de partie, pas une caractéristique | Valeur unique par ligne |
+| `redKills`, `redDeaths`, `redFirstBlood`, `redGoldDiff`, `redExperienceDiff` | Copie ou inverse d'une colonne `blue...` conservée | `(df["blueKills"] == df["redDeaths"]).all()`, `trouver_redondances()` |
+| `blueGoldPerMin`, `redGoldPerMin`, `blueCSPerMin`, `redCSPerMin` | Total divisé par 10 minutes : aucune information nouvelle | corrélation avec une autre donnée. |
+| `blueWardsPlaced`, `redWardsPlaced` | Bug dans le jeu lors de la prise de donnée, donc erronée. | taux de corrélation faible avec la taux de victoire du à l'aberrance de certaine donnée. |
