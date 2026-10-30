@@ -9,3 +9,5 @@
 | Modèle | *(ex. : régression logistique, forêt aléatoire, k plus proches voisins)* | *(à compléter, avec justification)* | *(...)* |
 | Technologie d'interface | *(ex. : Tkinter, Streamlit, Gradio)* | *(à compléter, avec justification)* | *(...)* |
 | Nettoyage des données | *(colonnes à garder ou retirer)* | *(ex. : retrait de `gameId`, gestion des colonnes redondantes)* | *(...)* |
+
+1.
