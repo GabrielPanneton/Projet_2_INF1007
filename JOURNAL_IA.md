@@ -1,17 +1,20 @@
-Étape 0
 
-Nous avons utilisé l'IA afin de comprendre comment bien configurer Github.
+| Outil | Ce que vous avez demandé | Réponse reçue | Vérification faite (documentation, test, exécution) | Décision (gardé, modifié, rejeté) |
+|---|---|---|---|---|
 
-Étape 1
+| Claude | Comment configurer correctement GitHub pour le projet. | Explications sur la création du dépôt, les commits et le partage du projet et les commandes possibles | Nous avons vérifié par execution. | Gardé |
 
-Nous n'avons pas utilisé l'IA afin de trouver notre jeu de donnée.
+| Aucune IA | Recherche du jeu de données. | Aucune demande à l'IA. Le jeu de données a été trouvé de manière autonome sur Kaggle. | X | X |
 
-Étape 2
+| Claude | Comment utiliser le module pandas pour analyser le jeu de donnée. | Différentes fonctions permettant de faire differentes actions du notre base de donnée | Nous avons vérifié par l'exécution | Gardé |
 
-https://www.leagueoflegends.com/en-gb/news/game-updates/patch-9-23-notes/
+| Gemini | Nous avosn remarquée des données aberantes sur une colonne de nos données et nous  avons chercher une source expliquant certaines mécaniques du jeu/ bug du jeu au moment de l'étude afin de justifier le retrait d'une colonne. | Lien vers les notes du patch 9.23 de League of Legends. | Lecture de la documentation officielle et comparaison avec les données. | Gardé, utilisé pour justifier le retrait d'une colonne, expliqué dans décision.md |
 
-Nous avons utilisé l'IA afin de nous fournir les fonction permettant de verifié les colonnes ayant une corrélation, de nettoyer la fonctions ainsi que pour faire le graphique.
-Nous l'avons aussi utiliser afin de nous donner des test afin de valider les différents aspects de ces fonctions.
+| Claude | Trouver une fonction permettant d'identifier les colonnes fortement corrélées. | Fonction Python calculant la matrice de corrélation et détectant les colonnes redondantes. | Exécution sur le jeu de données et analyse des résultats obtenus. | Gardé |
 
-Nous nous sommes aussi servit du lien plus haut (Trouver par l'IA) afin d'expliquer notre choix de pourquoi nous avons retiré une certaine colonne en particulier.
+| Claude | Nettoyer les données et déterminer quelles colonnes retirer. | Suggestions d'une definiton permettant de nettoyager et d'éliminer les colonnes redondantes. | Validation par analyse manuelle et comparaison avec la documentation du jeu. | Gardé |
+
+| Claude | Générer un graphique pour visualiser les données. | Code Python utilisant Matplotlib. | Exécution du graphique et vérification visuelle des résultats. | Gardé |
+
+| Claude | Proposer des tests pour vérifier les fonctions développées. | Cas de tests couvrant différents scénarios d'utilisation. | Exécution des tests sur les fonctions du projet. | Gardé |
 
