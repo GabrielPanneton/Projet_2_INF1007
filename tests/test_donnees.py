@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import pytest
-
+import exceptions
 from donnees import charger_donnees, nettoyer_donnees, trouver_redondances
 
 CHEMIN_CSV = os.path.join(
@@ -11,12 +11,16 @@ CHEMIN_CSV = os.path.join(
 )
 a_le_csv = os.path.exists(CHEMIN_CSV)
 
+"""def test_initial() :
+    assert 1 + 1 == 2"""
+
 def test_csv_present_dans_le_depot():
     assert os.path.exists(CHEMIN_CSV), f"CSV introuvable : {CHEMIN_CSV}"
     assert os.path.getsize(CHEMIN_CSV) > 0, "Le CSV est vide"
 
-"""def test_initial() :
-    assert 1 + 1 == 2"""
+def test_charger_fichier_absent():
+    with pytest.raises(FileNotFoundError):
+        charger_donnees("inexistant.csv")
 
 # ---------- Tests du détecteur (données fabriquées, rapides) ----------
 
@@ -105,3 +109,8 @@ def test_nettoyage_ne_modifie_pas_le_dataframe_original(df_brut):
     nettoyer_donnees(df_brut)
 
     assert list(df_brut.columns) == colonnes_avant
+
+def test_nettoyer_colonne_absente_leve_une_erreur(df_brut):
+    with pytest.raises(exceptions.DonneeInvalideError):
+        nettoyer_donnees(df_brut, colonnes_a_retirer=["colonne_inexistante"])
+
