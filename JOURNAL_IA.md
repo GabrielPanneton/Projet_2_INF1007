@@ -1,20 +1,12 @@
 
 | Outil | Ce que vous avez demandé | Réponse reçue | Vérification faite (documentation, test, exécution) | Décision (gardé, modifié, rejeté) |
 |---|---|---|---|---|
-
 | Claude | Comment configurer correctement GitHub pour le projet. | Explications sur la création du dépôt, les commits et le partage du projet et les commandes possibles | Nous avons vérifié par execution. | Gardé |
-
 | Aucune IA | Recherche du jeu de données. | Aucune demande à l'IA. Le jeu de données a été trouvé de manière autonome sur Kaggle. | X | X |
-
 | Claude | Comment utiliser le module pandas pour analyser le jeu de donnée. | Différentes fonctions permettant de faire differentes actions du notre base de donnée | Nous avons vérifié par l'exécution | Gardé |
-
-| Gemini | Nous avosn remarquée des données aberantes sur une colonne de nos données et nous  avons chercher une source expliquant certaines mécaniques du jeu/ bug du jeu au moment de l'étude afin de justifier le retrait d'une colonne. | Lien vers les notes du patch 9.23 de League of Legends. | Lecture de la documentation officielle et comparaison avec les données. | Gardé, utilisé pour justifier le retrait d'une colonne, expliqué dans décision.md |
-
+| Gemini | Nous avosn remarquée des données aberantes sur une colonne de nos données et nous  avons chercher une source expliquant certaines mécaniques du jeu/ bug du jeu au moment de l'étude afin de justifier le retrait d'une colonne. | Lien vers les notes du patch 9.23 de League of Legends.| Lecture de la documentation officielle et comparaison avec les données. | Gardé, utilisé pour justifier le retrait d'une colonne, expliqué dans décision.md |
 | Claude | Trouver une fonction permettant d'identifier les colonnes fortement corrélées. | Fonction Python calculant la matrice de corrélation et détectant les colonnes redondantes. | Exécution sur le jeu de données et analyse des résultats obtenus. | Gardé |
-
 | Claude | Nettoyer les données et déterminer quelles colonnes retirer. | Suggestions d'une definiton permettant de nettoyager et d'éliminer les colonnes redondantes. | Validation par analyse manuelle et comparaison avec la documentation du jeu. | Gardé |
-
 | Claude | Générer un graphique pour visualiser les données. | Code Python utilisant Matplotlib. | Exécution du graphique et vérification visuelle des résultats. | Gardé |
-
 | Claude | Proposer des tests pour vérifier les fonctions développées. | Cas de tests couvrant différents scénarios d'utilisation. | Exécution des tests sur les fonctions du projet. | Gardé |
 
