@@ -13,4 +13,5 @@
 | Nettoyage des données | `blueGoldPerMin`, `redGoldPerMin`, `blueCSPerMin`, `redCSPerMin`| Retirées parce que ce sont des totaux déjà conservée diviser par 10. ne donne pas d'inforamtion dupplémetaire. | pas à validé |
 | Nettoyage des données | `blueWardsPlaced`, `redWardsPlaced`| On suspect un bug lors de la prise de donnée, car plus d'un pourcent des donnée semble aberrante. De plus, un équivalent similaire 'blueWardsDestroyed' donne un information differente, mais similaire. et puis selon nos connaissance, les wards dont parmis les critere les moins influent sur le taux de victoire. | pas à validé |
 | Nettoyage des données | `blueEliteMonsters`, `redEliteMonsters`, `blueGoldDiff`, `blueExperienceDiff` | Retirées : EliteMonsters = dragons + hérauts, et chaque écart = total bleu − total rouge, Nous gardons les totaux d'or et d'XP pour calculer un écart relatif : un même écart pèse davantage quand le total est petit | pas à valider |
+| classe majoritaire, ensemble de test | 50,1 %  |||
 
