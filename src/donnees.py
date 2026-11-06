@@ -21,7 +21,8 @@ COLONNES_A_RETIRER: list[str] = [
     "redFirstBlood", "redDeaths", "redKills",
     "blueGoldPerMin", "blueCSPerMin", "redGoldPerMin", "redCSPerMin",
     "redGoldDiff", "redExperienceDiff",
-    "blueWardsPlaced", "redWardsPlaced",
+    "blueWardsPlaced", "redWardsPlaced", "blueEliteMonsters", "redEliteMonsters",
+    "blueGoldDiff", "blueExperienceDiff"
 ]
 
 
@@ -108,6 +109,7 @@ def trouver_redondances(
         resultat["correlation"].abs().sort_values(ascending=False).index
     ).reset_index(drop=True)
 
+############################
 
 def ajouter_ecarts_relatifs(df: pd.DataFrame) -> pd.DataFrame:
     """Ajoute l'avantage relatif en or et en XP de l'équipe bleue.
@@ -121,3 +123,20 @@ def ajouter_ecarts_relatifs(df: pd.DataFrame) -> pd.DataFrame:
     resultat["ecartOrRelatif"] = (or_b - or_r) / (or_b + or_r)
     resultat["ecartXpRelatif"] = (xp_b - xp_r) / (xp_b + xp_r)
     return resultat
+
+
+#####################
+
+CHEMIN_CSV: str = os.path.join(
+    os.path.dirname(__file__), "..", "donnees", "high_diamond_ranked_10min.csv"
+)
+
+
+def charger_donnees_propres(chemin: str = CHEMIN_CSV) -> pd.DataFrame:
+    """Charge le CSV puis le nettoie.
+
+    Reçoit : le chemin du CSV (celui du projet par défaut).
+    Renvoie : le DataFrame nettoyé.
+    Lève : DonneeInvalideError si le fichier ou une colonne à retirer est absent.
+    """
+    return ajouter_ecarts_relatifs(nettoyer_donnees(charger_donnees(chemin)))

@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from donnees import charger_donnees, nettoyer_donnees, trouver_redondances, ajouter_ecarts_relatifs
+from donnees import charger_donnees, nettoyer_donnees, trouver_redondances
 import numpy as np
 import pandas as pd
 
