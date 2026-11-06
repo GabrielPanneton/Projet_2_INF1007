@@ -21,12 +21,12 @@ print(f"Exactitude de la référence : {reference:.1%}")
 ##################################################
 
 
-modele = entrainer_modele(X_train, y_train)
+"""modele = entrainer_modele(X_train, y_train)
 exactitude = evaluer_modele(modele, X_test, y_test)
 
 print(f"Référence : {reference:.1%}")
 print(f"Modèle    : {exactitude:.1%}")
-print(calculer_matrice_confusion(modele, X_test, y_test))
+print(calculer_matrice_confusion(modele, X_test, y_test))"""
 
 ############################
 

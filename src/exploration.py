@@ -58,7 +58,7 @@ print(redondances.to_string())
 
 ################# Nettoyage #############
 
-df = nettoyer_donnees(df)
+df = ajouter_ecarts_relatifs(nettoyer_donnees(df))
 
 #print(df)
 print(df.shape)  
@@ -80,7 +80,7 @@ axes[0].set_xlabel("blueWins (0 = défaite, 1 = victoire)")
 axes[0].set_ylabel("Nombre de parties")
 
 # Écart d'or selon le résultat
-df.boxplot(column="blueGoldDiff", by="blueWins", ax=axes[1])
+df.boxplot(column="ecartOrRelatif", by="blueWins", ax=axes[1])
 axes[1].set_title("Écart d'or à 10 min selon le résultat")
 axes[1].set_xlabel("blueWins")
 axes[1].set_ylabel("blueGoldDiff")
