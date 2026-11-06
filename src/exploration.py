@@ -44,7 +44,10 @@ print(df.describe().T)          # la trasposée de lautes en haut.
 
 
 
-
+print((df["redEliteMonsters"] == df["redDragons"] + df["redHeralds"]).all())
+print((df["blueEliteMonsters"] == df["blueDragons"] + df["blueHeralds"]).all())
+print(np.allclose(df["blueGoldDiff"], df["blueTotalGold"] - df["redTotalGold"]))
+print(np.allclose(df["blueExperienceDiff"], df["blueTotalExperience"] - df["redTotalExperience"]))
 
 redondances = trouver_redondances(df, seuil=0.95)
 print(redondances.to_string())

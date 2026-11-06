@@ -107,3 +107,17 @@ def trouver_redondances(
     return resultat.reindex(
         resultat["correlation"].abs().sort_values(ascending=False).index
     ).reset_index(drop=True)
+
+
+def ajouter_ecarts_relatifs(df: pd.DataFrame) -> pd.DataFrame:
+    """Ajoute l'avantage relatif en or et en XP de l'équipe bleue.
+
+    Reçoit un DataFrame avec les totaux d'or et d'XP des deux équipes.
+    Retourne une copie avec deux colonnes de plus, comprises entre -1 et 1.
+    """
+    resultat = df.copy()
+    or_b, or_r = df["blueTotalGold"], df["redTotalGold"]
+    xp_b, xp_r = df["blueTotalExperience"], df["redTotalExperience"]
+    resultat["ecartOrRelatif"] = (or_b - or_r) / (or_b + or_r)
+    resultat["ecartXpRelatif"] = (xp_b - xp_r) / (xp_b + xp_r)
+    return resultat
