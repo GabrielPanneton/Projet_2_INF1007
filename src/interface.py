@@ -17,13 +17,21 @@ Fonctionnement :
   le calcul continue.
 - Valeur impossible (règles du jeu, par exemple un niveau moyen
   supérieur à 18) : une erreur est affichée et le calcul n'a pas lieu.
+  Une valeur neutre ne peut jamais bloquer le calcul : si elle
+  contredit une valeur saisie, elle est ajustée à la valeur la plus
+  proche qui respecte la règle (par exemple les assists neutres sont
+  plafonnés à 4 fois les kills saisis), et l'ajustement est affiché.
 - Le bouton « Prédire » affiche la probabilité pour cette partie,
   l'exactitude globale du modèle (71,8 %) à part, un graphique qui
   situe l'écart d'or de la partie dans la distribution
   d'entraînement, et ajoute la prédiction à l'historique
-  (``historique_predictions.csv`` à la racine du projet).
+  (``historique_predictions.csv`` à la racine du projet). Si des
+  champs sont laissés vides, un avertissement rappelle que le
+  résultat peut être moins fiable, car il repose en partie sur les
+  valeurs moyennes.
 """
 
+import math
 import os
 import sys
 from abc import ABC, abstractmethod
@@ -213,6 +221,93 @@ def charger_statistiques_entrainement():
     except Exception:
         return (dict(MOYENNES_SECOURS), list(HISTO_SECOURS_BORDS),
                 list(HISTO_SECOURS_COMPTES), False)
+
+
+def reparer_valeurs_neutres(valeurs, saisies):
+    """Ajuste les valeurs neutres pour respecter les règles du jeu.
+
+    Une valeur neutre (moyenne d'entraînement) n'a aucun sens si elle
+    contredit une valeur saisie : par exemple, 6,67 assists rouges
+    neutres sont impossibles si l'équipe rouge n'a fait qu'1 kill
+    (1 mort bleue). On ajuste alors la valeur neutre, jamais une
+    valeur saisie : on prend la valeur la plus proche de la moyenne
+    qui respecte la règle. Retourne (valeurs, ajustements), où
+    ``ajustements`` liste les modifications faites, à afficher.
+    """
+    ajustements = []
+
+    # Assists : 4 au maximum par kill (les kills rouges = les morts bleues).
+    for kills, assists, libelle in (
+        ("blueKills", "blueAssists", "Assists (bleu)"),
+        ("blueDeaths", "redAssists", "Assists (rouge)"),
+    ):
+        if assists not in saisies:
+            plafond = ASSISTS_PAR_KILL_MAX * valeurs[kills]
+            if valeurs[assists] > plafond:
+                valeurs[assists] = plafond
+                ajustements.append(
+                    f"{libelle} non renseignés : ajustés à {plafond:.0f} "
+                    f"pour rester cohérents avec {valeurs[kills]:.0f} kill(s) "
+                    f"({ASSISTS_PAR_KILL_MAX} assists au maximum par kill)."
+                )
+        elif kills not in saisies:
+            plancher = math.ceil(valeurs[assists] / ASSISTS_PAR_KILL_MAX)
+            if valeurs[kills] < plancher:
+                valeurs[kills] = float(plancher)
+                ajustements.append(
+                    f"{LIBELLES[kills]} non renseignés : ajustés à "
+                    f"{plancher} pour rester cohérents avec "
+                    f"{valeurs[assists]:.0f} assists."
+                )
+
+    # Sbires de la jungle : un sous-ensemble des sbires totaux.
+    for jungle, total in (
+        ("blueTotalJungleMinionsKilled", "blueTotalMinionsKilled"),
+        ("redTotalJungleMinionsKilled", "redTotalMinionsKilled"),
+    ):
+        if jungle not in saisies:
+            if valeurs[jungle] > valeurs[total]:
+                valeurs[jungle] = valeurs[total]
+                ajustements.append(
+                    f"{LIBELLES[jungle]} non renseignés : ajustés à "
+                    f"{valeurs[total]:.0f}, comme les sbires totaux."
+                )
+        elif total not in saisies:
+            if valeurs[total] < valeurs[jungle]:
+                valeurs[total] = valeurs[jungle]
+                ajustements.append(
+                    f"{LIBELLES[total]} non renseignés : ajustés à "
+                    f"{valeurs[jungle]:.0f}, comme les sbires de la jungle."
+                )
+    return valeurs, ajustements
+
+
+def message_valeurs_manquantes(manquantes):
+    """Message d'avertissement quand des champs sont vides.
+
+    Retourne None si rien ne manque. ``manquantes`` est la liste des
+    noms (clés) des champs non renseignés, complétés avec les valeurs
+    moyennes d'entraînement : le résultat repose alors en partie sur
+    ces valeurs par défaut, il peut donc être moins fiable.
+    """
+    nombre = len(manquantes)
+    if nombre == 0:
+        return None
+    if nombre <= 5:
+        noms = ", ".join(LIBELLES[nom] for nom in manquantes)
+    else:
+        premiers = ", ".join(LIBELLES[nom] for nom in manquantes[:5])
+        reste = nombre - 5
+        autres = "autre" if reste == 1 else "autres"
+        noms = f"{premiers} et {reste} {autres}"
+    mot = "champ non renseigné" if nombre == 1 else "champs non renseignés"
+    accord = "complété" if nombre == 1 else "complétés"
+    return (
+        f"Attention : {nombre} {mot} ({noms}) {accord} avec les valeurs "
+        f"moyennes d'entraînement. Le résultat peut donc être moins "
+        f"fiable — renseignez plus de champs pour une prédiction plus "
+        f"précise."
+    )
 
 
 def erreurs_bloquantes(valeurs):
@@ -407,6 +502,14 @@ class Application:
         """Valide, calcule les écarts, prédit, affiche et enregistre."""
         valeurs = {v.nom: v.completer(valeurs_brutes[v.nom])
                    for v in self.variables}
+        saisies = {nom for nom, brut in valeurs_brutes.items()
+                   if brut is not None}
+
+        # Une valeur neutre ne bloque jamais le calcul : on l'ajuste
+        # si elle contredit une valeur saisie, et on l'affiche.
+        valeurs, ajustements = reparer_valeurs_neutres(valeurs, saisies)
+        for ajustement in ajustements:
+            st.info(ajustement)
 
         erreurs = erreurs_bloquantes(valeurs)
         if erreurs:
@@ -423,6 +526,11 @@ class Application:
         probabilite = float(self.modele.predict_proba(ligne)[0][1])
         ecart_or = float(ligne.iloc[0]["ecartOrRelatif"])
         ecart_xp = float(ligne.iloc[0]["ecartXpRelatif"])
+
+        message = message_valeurs_manquantes(
+            [nom for nom, brut in valeurs_brutes.items() if brut is None])
+        if message is not None:
+            st.warning(message)
 
         st.metric("Chance que l'équipe bleue gagne", f"{probabilite:.0%}")
         st.write(f"L'équipe bleue a environ {probabilite:.0%} de chances "
