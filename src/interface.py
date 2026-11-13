@@ -465,11 +465,16 @@ class Application:
         self.variables = construire_variables(self.metadonnees, self.moyennes)
 
     def executer(self):
-        """Affiche l'interface et gère le bouton Prédire."""
+        """Affiche l'interface et gère le bouton Prédire."""   
+        
+        st.image("assets/lol.png", use_container_width=True)
+
         st.title("League of Legends — Qui gagne à 10 minutes ?")
+
         st.write("Remplissez les statistiques de la partie à 10 minutes. "
                  "Un champ vide prend la valeur neutre (moyenne "
                  "d'entraînement) : elle n'influence pas la prédiction.")
+        
         if not self.stats_ok:
             st.warning("Données d'entraînement introuvables : les valeurs "
                        "neutres et le graphique utilisent les valeurs de "
