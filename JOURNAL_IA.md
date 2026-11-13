@@ -9,4 +9,5 @@
 | Claude | Nettoyer les données et déterminer quelles colonnes retirer. | Suggestions d'une definiton permettant de nettoyager et d'éliminer les colonnes redondantes. | Validation par analyse manuelle et comparaison avec la documentation du jeu. | Gardé |
 | Claude | Générer un graphique pour visualiser les données. | Code Python utilisant Matplotlib. | Exécution du graphique et vérification visuelle des résultats. | Gardé |
 | Claude | Proposer des tests pour vérifier les fonctions développées. | Cas de tests couvrant différents scénarios d'utilisation. | Exécution des tests sur les fonctions du projet. | Gardé |
+| Muse | Nous lui avons demander comment faire un modèle basée sur l'exacitutde et le modèle de régression linéaire | Un code à mettre dans modele.py | 
 | Muse | Proposer des idées pour l'interface | Croquis et choix de technologie. | Exécution des l'interface | Gardé |
