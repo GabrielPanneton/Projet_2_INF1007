@@ -20,17 +20,26 @@ Fonctionnement :
   proche qui respecte la règle (par exemple les assists neutres sont
   plafonnés à 4 fois les kills saisis), et l'ajustement est affiché.
 - Un bouton « Générer une partie d'exemple » en haut de la page
-  remplit tous les champs avec une partie plausible où l'équipe
-  bleue domine (9 kills, 3 morts, 1 dragon, 1 tour), pour tester
-  la prédiction sans rien saisir.
+  tire une vraie partie au hasard dans les données d'entraînement
+  (donc toujours plausible et cohérente), pour tester la
+  prédiction sans rien saisir. Si le CSV est introuvable, le
+  bouton retombe sur une partie fixe où l'équipe bleue domine
+  (9 kills, 3 morts, 1 dragon, 1 tour). Après « Prédire », la
+  vraie issue de la partie tirée est affichée quand elle est
+  connue — elle ne vaut que si les champs n'ont pas été modifiés
+  après le tirage.
 - Le bouton « Prédire » affiche la probabilité pour cette partie,
-  l'exactitude globale du modèle (71,1 %) à part, un graphique qui
+  l'exactitude globale du modèle (70,7 %) à part, un graphique qui
   montre ce qui fait pencher la prédiction (la contribution de
   chaque variable au score), et ajoute la prédiction à l'historique
   (``historique_predictions.csv`` à la racine du projet). Si des
   champs sont laissés vides, un avertissement rappelle que le
   résultat peut être moins fiable, car il repose en partie sur les
   valeurs moyennes.
+- Deux onglets sous le titre : « Prédire une partie » (le
+  formulaire) et « Coefficients du modèle » (le coefficient,
+  la moyenne et l'écart-type de chaque variable, lus dans le
+  modèle chargé, avec un graphique).
 """
 
 import math
@@ -123,6 +132,12 @@ def charger_parties_exemples():
 def choisir_partie_aleatoire():
     """Tire une vraie partie au hasard, prête à mettre dans les champs.
 
+    On tire une ligne entière au hasard, jamais chaque variable
+    séparément : tirer les variables séparément recréerait des
+    parties impossibles (par exemple plus d'assists que 4 fois les
+    kills, ou plus de sbires de la jungle que de sbires totaux).
+    Une vraie partie est cohérente par construction.
+
     Renvoie (valeurs, victoire_reelle) : valeurs est un dictionnaire
     avec les 19 champs, victoire_reelle est True si l'équipe bleue
     a vraiment gagné cette partie-là.
@@ -139,6 +154,29 @@ def choisir_partie_aleatoire():
         else:
             valeurs[nom] = float(valeur)
     return valeurs, bool(partie["blueWins"])
+
+
+def exemple_genere_inchange(valeurs):
+    """Vrai si les champs affichent encore la partie générée.
+
+    Compare les valeurs complétées actuelles à la partie mise en
+    mémoire au moment du tirage (les choix de liste sont convertis
+    en 0.0/1.0). Si l'utilisateur a modifié un champ après le
+    tirage, la vraie issue mémorisée ne correspond plus à la partie
+    affichée et ne doit pas être montrée.
+    """
+    generee = st.session_state.get("partie_generee")
+    if generee is None:
+        return False
+    for nom, affiche in generee.items():
+        if isinstance(affiche, str):
+            attendu = VariableCategorielle.CORRESPONDANCE[affiche]
+        else:
+            attendu = float(affiche)
+        if valeurs[nom] != attendu:
+            return False
+    return True
+
 
 
 class Variable(ABC):
@@ -236,13 +274,25 @@ def construire_variables(metadonnees, moyennes):
     return variables
 
 
-@st.cache_data
-def charger_statistiques_entrainement():
-    """Moyennes neutres du jeu d'entraînement.
+def charger_statistiques_entrainement(modele=None, colonnes=None):
+    """Moyennes neutres : celles du modèle (son StandardScaler).
 
-    Retourne (moyennes, ok) ; si le CSV est introuvable, ``ok`` vaut
-    False et les valeurs de secours sont utilisées.
+    Ce sont exactement les valeurs qui annulent chaque
+    contribution, donc un champ vide ne pousse ni vers bleu
+    ni vers rouge. Si le modèle n'est pas disponible, on
+    retombe sur les moyennes du CSV, puis sur les secours.
     """
+    if modele is not None and colonnes is not None:
+        try:
+            moyennes = {
+                nom: float(moyenne)
+                for nom, moyenne in zip(
+                    colonnes, modele.named_steps["normalisation"].mean_
+                )
+            }
+            return moyennes, True
+        except Exception:
+            pass
     try:
         donnees = charger_donnees_propres()
         x_train, _, _, _ = separer_donnees(donnees)
@@ -465,13 +515,36 @@ def tracer_contributions(contributions):
     libelles = [libelle for libelle, _ in contributions]
     valeurs_contrib = [contribution for _, contribution in contributions]
     couleurs = ["#2e8b57" if v >= 0 else "#c0392b" for v in valeurs_contrib]
-    fig, ax = plt.subplots(figsize=(6.4,3.6))
+    fig, ax = plt.subplots(figsize=(6, 3))
     ax.barh(libelles, valeurs_contrib, color=couleurs)
     ax.axvline(0, color="black", linewidth=1)
-    ax.set_xlabel("Contribution au score (z) : + = pour la victoire bleue, "
-                  "- = contre la victoire bleue", fontsize=9)
-    ax.set_title("Qu'est-ce qui fait pencher la prédiction ?", fontsize=11)
-    ax.tick_params(axis="y", labelsize=8)
+    ax.set_xlabel("Contribution au score (z)\n"
+                  "+ = pour la victoire bleue, - = contre la victoire bleue",
+                  fontsize=8)
+    ax.set_title("Qu'est-ce qui fait pencher la prédiction ?", fontsize=10)
+    ax.tick_params(axis="y", labelsize=7)
+    ax.invert_yaxis()
+    fig.tight_layout()
+    return fig
+
+
+def tracer_coefficients(coefficients):
+    """Barres horizontales des coefficients du modèle.
+
+    En vert, ce qui pousse vers la victoire bleue ; en rouge, ce
+    qui pousse vers la défaite bleue. Le coefficient le plus
+    positif est en haut du graphique.
+    """
+    libelles = [libelle for libelle, _ in coefficients]
+    valeurs_coef = [coef for _, coef in coefficients]
+    couleurs = ["#2e8b57" if v >= 0 else "#c0392b" for v in valeurs_coef]
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.barh(libelles, valeurs_coef, color=couleurs)
+    ax.axvline(0, color="black", linewidth=1)
+    ax.set_xlabel("Coefficient (effet d'un écart-type sur le score z)",
+                  fontsize=8)
+    ax.set_title("Coefficients du modèle", fontsize=10)
+    ax.tick_params(axis="y", labelsize=7)
     ax.invert_yaxis()
     fig.tight_layout()
     return fig
@@ -516,15 +589,28 @@ class Application:
     def __init__(self):
         self.modele = charger_modele()
         self.metadonnees = charger_metadonnees()
-        self.moyennes, self.stats_ok = charger_statistiques_entrainement()
+        self.moyennes, self.stats_ok = charger_statistiques_entrainement(
+            self.modele, self.metadonnees["colonnes"]
+        )
         self.variables = construire_variables(self.metadonnees, self.moyennes)
 
     def executer(self):
-        """Affiche l'interface et gère le bouton Prédire."""   
-        
+        """Affiche l'interface : un onglet pour prédire, un pour les coefficients."""
+
         st.image("assets/lol.png", use_container_width=True)
 
         st.title("League of Legends — Qui gagne à 10 minutes ?")
+
+        onglet_prediction, onglet_coefficients = st.tabs(
+            ["Prédire une partie", "Coefficients du modèle"]
+        )
+        with onglet_prediction:
+            self._afficher_prediction()
+        with onglet_coefficients:
+            self._afficher_coefficients()
+
+    def _afficher_prediction(self):
+        """Le formulaire de prédiction : exemple, champs, Prédire, historique."""
 
         st.write("Remplissez les statistiques de la partie à 10 minutes. "
                  "Un champ vide prend la valeur neutre (moyenne "
@@ -537,9 +623,9 @@ class Application:
                 valeurs, victoire_reelle = PARTIE_EXEMPLE, None
             for nom, valeur in valeurs.items():
                 st.session_state[f"saisie_{nom}"] = valeur
+            st.session_state["partie_generee"] = valeurs
             st.session_state["victoire_reelle_exemple"] = victoire_reelle
             st.rerun()
-
         
         if not self.stats_ok:
             st.warning("Données d'entraînement introuvables : les valeurs "
@@ -552,6 +638,54 @@ class Application:
             self._predire(valeurs_brutes)
 
         self._afficher_historique()
+
+    def _afficher_coefficients(self):
+        """Les coefficients du modèle, pour chaque variable.
+
+        Un coefficient indique l'effet d'une augmentation d'un
+        écart-type de la variable sur le score z : positif, ça
+        pousse vers la victoire bleue ; négatif, vers la défaite
+        bleue. Les coefficients sont lus dans le modèle chargé,
+        jamais recopiés à la main.
+        """
+        scaler = self.modele.named_steps["normalisation"]
+        regression = self.modele.named_steps["regression"]
+        lignes = []
+        for nom, coef, moyenne, ecart_type in zip(
+            self.metadonnees["colonnes"],
+            regression.coef_[0],
+            scaler.mean_,
+            scaler.scale_,
+        ):
+            lignes.append(
+                {
+                    "Variable": LIBELLES[nom],
+                    "Coefficient": round(float(coef), 4),
+                    "Moyenne": round(float(moyenne), 2),
+                    "Écart-type": round(float(ecart_type), 2),
+                }
+            )
+        tableau = pd.DataFrame(lignes).sort_values(
+            "Coefficient", ascending=False
+        )
+        st.write(
+            "Chaque coefficient indique l'effet d'une augmentation "
+            "d'un écart-type de la variable sur le score z."
+        )
+        st.dataframe(tableau, hide_index=True)
+        st.write(
+            f"Intercept : {float(regression.intercept_[0]):.4f} "
+            "(pratiquement 0 : à valeurs moyennes, le modèle "
+            "prédit 50 %)."
+        )
+        st.pyplot(
+            tracer_coefficients(
+                [
+                    (ligne["Variable"], ligne["Coefficient"])
+                    for ligne in tableau.to_dict("records")
+                ]
+            )
+        )
 
     def _afficher_saisie(self):
         """Les 19 champs, équipe bleue à gauche, équipe rouge à droite."""
@@ -607,15 +741,19 @@ class Application:
         st.write("Prédiction du modèle : "
                  + ("victoire bleue" if probabilite >= 0.5
                     else "défaite bleue"))
+        # Vraie issue, seulement pour une partie tirée au hasard et
+        # non modifiée ensuite : si l'utilisateur a changé un champ
+        # après le tirage, elle disparaît (voir
+        # exemple_genere_inchange).
         victoire_reelle = st.session_state.get("victoire_reelle_exemple")
-        if victoire_reelle is not None:
+        if victoire_reelle is not None and exemple_genere_inchange(valeurs):
             bonne_prediction = (probabilite >= 0.5) == victoire_reelle
-            st.write("Vraie issue de cette partie : "
-                    + ("victoire bleue" if victoire_reelle
+            st.write("Vraie issue de cette partie (tirée au hasard, "
+                     "non modifiée) : "
+                     + ("victoire bleue" if victoire_reelle
                         else "défaite bleue")
-                    + (" — le modèle avait raison ✅" if bonne_prediction
+                     + (" — le modèle avait raison ✅" if bonne_prediction
                         else " — le modèle s'était trompé ❌"))
-
         st.caption(
             f"Exactitude globale du modèle : "
             f"{self.metadonnees['exactitude_modele']:.1%} sur 1 976 parties "

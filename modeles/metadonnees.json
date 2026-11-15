@@ -46,7 +46,7 @@
       "nom": "blueDeaths",
       "type": "numerique",
       "min": 0.0,
-      "max": 19.0
+      "max": 22.0
     },
     {
       "nom": "blueAssists",
@@ -79,32 +79,32 @@
     {
       "nom": "blueAvgLevel",
       "type": "numerique",
-      "min": 5.2,
+      "min": 4.8,
       "max": 8.0
     },
     {
       "nom": "blueTotalMinionsKilled",
       "type": "numerique",
       "min": 90.0,
-      "max": 283.0
+      "max": 289.0
     },
     {
       "nom": "blueTotalJungleMinionsKilled",
       "type": "numerique",
       "min": 0.0,
-      "max": 88.0
+      "max": 92.0
     },
     {
       "nom": "redWardsDestroyed",
       "type": "numerique",
       "min": 0.0,
-      "max": 24.0
+      "max": 25.0
     },
     {
       "nom": "redAssists",
       "type": "numerique",
       "min": 0.0,
-      "max": 26.0
+      "max": 29.0
     },
     {
       "nom": "redDragons",
@@ -126,7 +126,7 @@
       "nom": "redTowersDestroyed",
       "type": "numerique",
       "min": 0.0,
-      "max": 2.0
+      "max": 4.0
     },
     {
       "nom": "redAvgLevel",
@@ -137,17 +137,17 @@
     {
       "nom": "redTotalMinionsKilled",
       "type": "numerique",
-      "min": 107.0,
+      "min": 90.0,
       "max": 289.0
     },
     {
       "nom": "redTotalJungleMinionsKilled",
       "type": "numerique",
-      "min": 4.0,
+      "min": 0.0,
       "max": 92.0
     }
   ],
   "metrique": "exactitude",
-  "exactitude_modele": 0.7105263157894737,
+  "exactitude_modele": 0.7069838056680162,
   "exactitude_reference": 0.5010121457489879
 }

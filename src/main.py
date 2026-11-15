@@ -30,7 +30,7 @@ print(calculer_matrice_confusion(modele, X_test, y_test))"""
 
 ############################
 
-from donnees import charger_donnees_propres
+from donnees import charger_donnees_propres, augmenter_donnees
 from modele import (
     calculer_reference, construire_metadonnees, entrainer_modele,
     evaluer_modele, sauvegarder_metadonnees, sauvegarder_modele, separer_donnees,
@@ -38,6 +38,7 @@ from modele import (
 
 df = charger_donnees_propres()
 X_train, X_test, y_train, y_test = separer_donnees(df)
+X_train, y_train = augmenter_donnees(X_train, y_train)
 
 reference = calculer_reference(X_train, X_test, y_train, y_test)
 modele = entrainer_modele(X_train, y_train)

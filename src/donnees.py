@@ -153,3 +153,44 @@ def charger_donnees_propres(chemin: str = CHEMIN_CSV) -> pd.DataFrame:
     l'exploration, mais elle n'est plus appelée ici.
     """
     return nettoyer_donnees(charger_donnees(chemin))
+
+COLONNES_ECHANGE = {
+    "blueKills": "blueDeaths", "blueDeaths": "blueKills",
+    "blueAssists": "redAssists", "redAssists": "blueAssists",
+    "blueDragons": "redDragons", "redDragons": "blueDragons",
+    "blueHeralds": "redHeralds", "redHeralds": "blueHeralds",
+    "blueTowersDestroyed": "redTowersDestroyed",
+    "redTowersDestroyed": "blueTowersDestroyed",
+    "blueAvgLevel": "redAvgLevel", "redAvgLevel": "blueAvgLevel",
+    "blueTotalMinionsKilled": "redTotalMinionsKilled",
+    "redTotalMinionsKilled": "blueTotalMinionsKilled",
+    "blueTotalJungleMinionsKilled": "redTotalJungleMinionsKilled",
+    "redTotalJungleMinionsKilled": "blueTotalJungleMinionsKilled",
+    "blueWardsDestroyed": "redWardsDestroyed",
+    "redWardsDestroyed": "blueWardsDestroyed",
+}
+
+
+def echanger_equipes(donnees):
+    """Copie des parties avec bleu et rouge échangés.
+
+    Le premier sang n'a pas d'équivalent rouge : il s'inverse
+    (1 - valeur). On lit toujours dans `donnees` (l'original),
+    donc l'échange ne se mélange pas avec lui-même.
+    """
+    echangees = donnees.copy()
+    for colonne, equivalente in COLONNES_ECHANGE.items():
+        echangees[colonne] = donnees[equivalente]
+    echangees["blueFirstBlood"] = 1 - donnees["blueFirstBlood"]
+    return echangees
+
+
+def augmenter_donnees(x_train, y_train):
+    """Double l'entraînement : chaque partie + sa version échangée.
+
+    À appeler APRÈS separer_donnees, sur le train seulement.
+    """
+    x_echange = echanger_equipes(x_train)
+    x_aug = pd.concat([x_train, x_echange], ignore_index=True)
+    y_aug = pd.concat([y_train, 1 - y_train], ignore_index=True)
+    return x_aug, y_aug
