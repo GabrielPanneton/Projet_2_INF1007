@@ -42,10 +42,11 @@ X_train, X_test, y_train, y_test = separer_donnees(df)
 reference = calculer_reference(X_train, X_test, y_train, y_test)
 modele = entrainer_modele(X_train, y_train)
 exactitude = evaluer_modele(modele, X_test, y_test)
+matrice = calculer_matrice_confusion(modele,X_test, y_test )
 
 sauvegarder_modele(modele)
 sauvegarder_metadonnees(construire_metadonnees(X_train, exactitude, reference))
-print(f"Référence : {reference:.1%} | Modèle : {exactitude:.1%}")
+print(f" | Référence : {reference:.1%} | Modèle : {exactitude:.1%} | \n | Matrice : {matrice} | ")
 
 #3#####
 
