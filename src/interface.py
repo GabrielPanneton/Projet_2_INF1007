@@ -28,6 +28,24 @@ Fonctionnement :
   vraie issue de la partie tirée est affichée quand elle est
   connue — elle ne vaut que si les champs n'ont pas été modifiés
   après le tirage.
+- Un bouton « Tout effacer » vide tous les champs d'un coup :
+  on retrouve l'état d'ouverture du site (champs vides,
+  « Non renseigné » pour les listes), et la vraie issue de la
+  partie générée disparaît. Il augmente le numéro de version
+  des champs (``_cle_saisie``) : chaque champ est recréé avec
+  une nouvelle clé, donc sans aucune valeur mémorisée.
+  L'historique des prédictions
+  (``historique_predictions.csv``) n'est pas effacé.
+- Premier sang : si les kills bleus et les morts bleues sont
+  à 0, personne n'a fait de kill, donc le premier sang ne
+  peut être ni « Oui » ni « Non » : il doit rester sur
+  « Non renseigné », sinon la prédiction est bloquée.
+- Nombres entiers : les kills, morts, assists, tours,
+  sbires et wards sont des compteurs et n'acceptent pas
+  les virgules (le champ affiche un entier et une valeur
+  à virgule bloque la prédiction). Seuls les niveaux
+  moyens acceptent les virgules, parce que ce sont des
+  moyennes.
 - Le bouton « Prédire » affiche la probabilité pour cette partie,
   l'exactitude globale du modèle (70,7 %) à part, un graphique qui
   montre ce qui fait pencher la prédiction (la contribution de
@@ -178,6 +196,17 @@ def exemple_genere_inchange(valeurs):
     return True
 
 
+def _cle_saisie(nom):
+    """La clé d'un champ, avec un numéro de version.
+
+    Quand on efface tout, on augmente la version : chaque champ
+    est recréé avec une nouvelle clé, donc sans aucune
+    valeur mémorisée — vide pour les nombres, « Non
+    renseigné » pour les listes. Les anciennes valeurs
+    restent attachées aux anciennes clés, qui n'existent plus.
+    """
+    return f"saisie_{nom}_{st.session_state.get('version_champs', 0)}"
+
 
 class Variable(ABC):
     """Un champ de l'interface : sait s'afficher et se compléter.
@@ -218,7 +247,8 @@ class VariableNumerique(Variable):
             f"{self.libelle} ({self.nom})",
             value=None,
             step=self.pas,
-            key=f"saisie_{self.nom}",
+            format="%d" if self.pas == 1 else None,
+            key=_cle_saisie(self.nom),
             help=f"Vide = valeur neutre ({self.neutre:.2f}). "
                  f"Intervalle observé : {self.minimum} à {self.maximum}.",
         )
@@ -236,7 +266,7 @@ class VariableCategorielle(Variable):
     def afficher(self):
         choix = st.selectbox(
             f"{self.libelle} ({self.nom})", self.options,
-            key=f"saisie_{self.nom}",
+            key=_cle_saisie(self.nom),
         )
         if choix == "Non renseigné":
             return None
@@ -244,10 +274,15 @@ class VariableCategorielle(Variable):
 
 
 def _pas(nom):
-    """Le pas des flèches de la zone de saisie, selon la variable."""
+    """Le pas des flèches de la zone de saisie, selon la variable.
+
+    1 (entier) pour les compteurs — kills, morts, assists, tours,
+    sbires, wards — et 0,1 pour les niveaux moyens, qui sont des
+    moyennes et acceptent les virgules.
+    """
     if nom in ("blueAvgLevel", "redAvgLevel"):
         return 0.1
-    return 1.0
+    return 1
 
 
 def construire_variables(metadonnees, moyennes):
@@ -391,6 +426,31 @@ def message_valeurs_manquantes(manquantes):
     )
 
 
+def erreurs_non_entiers(variables, valeurs_brutes):
+    """Valeurs à virgule pour des compteurs : le calcul n'a pas lieu.
+
+    Les kills, morts, assists, tours, sbires et wards sont des
+    compteurs : ils ne peuvent pas être des nombres à virgule.
+    Seuls les niveaux moyens (des moyennes) acceptent les virgules.
+    On ne vérifie que les valeurs saisies : les valeurs neutres
+    (moyennes d'entraînement, par exemple 6,16 kills) ont
+    toujours des virgules et ne sont pas concernées.
+    """
+    erreurs = []
+    for variable in variables:
+        if not isinstance(variable, VariableNumerique):
+            continue
+        if variable.nom in ("blueAvgLevel", "redAvgLevel"):
+            continue  # moyenne : les virgules sont normales
+        brut = valeurs_brutes[variable.nom]
+        if brut is not None and brut != int(brut):
+            erreurs.append(
+                f"{variable.libelle} : {brut} — impossible, "
+                "c'est un nombre entier, pas un nombre à virgule."
+            )
+    return erreurs
+
+
 def erreurs_bloquantes(valeurs):
     """Valeurs impossibles selon les règles du jeu : le calcul n'a pas lieu."""
     erreurs = []
@@ -428,6 +488,20 @@ def erreurs_bloquantes(valeurs):
                 f"{libelle} : {valeurs[jungle]}, plus que les sbires totaux "
                 f"({valeurs[total]}) — impossible."
             )
+
+    # Premier sang : s'il n'y a eu aucun kill des deux côtés
+    # (0 kill bleu et 0 mort bleue = 0 kill rouge), personne n'a
+    # pu faire le premier sang : il doit rester indéterminé
+    # (« Non renseigné », la valeur neutre 0,5). Un premier sang
+    # « Oui » ou « Non » est donc impossible dans ce cas.
+    if valeurs["blueKills"] == 0 and valeurs["blueDeaths"] == 0 \
+            and valeurs["blueFirstBlood"] in (0.0, 1.0):
+        erreurs.append(
+            "Premier sang : Kills (bleu) = 0 et Morts (bleu) = 0 — "
+            "impossible, personne n'a fait de kill, donc personne "
+            "n'a pu faire le premier sang. Mettez le premier sang "
+            "sur « Non renseigné »."
+        )
 
     # Tours détruites : 11 au maximum par équipe.
     for nom in ("blueTowersDestroyed", "redTowersDestroyed"):
@@ -609,6 +683,25 @@ class Application:
         with onglet_coefficients:
             self._afficher_coefficients()
 
+    def _effacer_champs(self):
+        """Vide tous les champs : retour a l'etat d'ouverture du site.
+
+        On augmente le numéro de version des champs (voir
+        ``_cle_saisie``) : tous les champs sont recréés avec
+        une nouvelle clé, donc sans aucune valeur mémorisée.
+        On efface aussi la partie générée et sa vraie issue.
+        """
+        for cle in list(st.session_state.keys()):
+            if cle.startswith("saisie_") or cle in (
+                "partie_generee",
+                "victoire_reelle_exemple",
+            ):
+                del st.session_state[cle]
+        st.session_state["version_champs"] = (
+            st.session_state.get("version_champs", 0) + 1
+        )
+
+
     def _afficher_prediction(self):
         """Le formulaire de prédiction : exemple, champs, Prédire, historique."""
 
@@ -622,11 +715,15 @@ class Application:
             except Exception:
                 valeurs, victoire_reelle = PARTIE_EXEMPLE, None
             for nom, valeur in valeurs.items():
-                st.session_state[f"saisie_{nom}"] = valeur
+                st.session_state[_cle_saisie(nom)] = valeur
             st.session_state["partie_generee"] = valeurs
             st.session_state["victoire_reelle_exemple"] = victoire_reelle
             st.rerun()
-        
+
+        if st.button("🧹 Tout effacer"):
+            self._effacer_champs()
+            st.rerun()
+
         if not self.stats_ok:
             st.warning("Données d'entraînement introuvables : les valeurs "
                        "neutres utilisent les valeurs de secours enregistrées "
@@ -716,7 +813,8 @@ class Application:
         for ajustement in ajustements:
             st.info(ajustement)
 
-        erreurs = erreurs_bloquantes(valeurs)
+        erreurs = (erreurs_non_entiers(self.variables, valeurs_brutes)
+                   + erreurs_bloquantes(valeurs))
         if erreurs:
             for erreur in erreurs:
                 st.error(erreur)
