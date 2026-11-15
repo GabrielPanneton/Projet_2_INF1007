@@ -4,10 +4,8 @@ Lancer depuis la racine du projet (après ``pip install streamlit``) :
     streamlit run src/interface.py
 
 Fonctionnement :
-- 23 champs à remplir : les 25 colonnes du modèle moins les 2 écarts
-  (``ecartOrRelatif`` et ``ecartXpRelatif``), qui sont calculés
-  automatiquement à partir de l'or et de l'XP, avec la même formule
-  que ``donnees.ajouter_ecarts_relatifs``.
+- 19 champs à remplir : les 19 colonnes du modèle simple (sans or,
+  sans XP et sans écarts relatifs — voir ``donnees.py``).
 - Un champ laissé vide prend la valeur neutre : la moyenne de la
   variable sur le jeu d'entraînement. Une valeur neutre ne change pas
   le score du modèle (elle vaut 0 une fois normalisée), donc elle
@@ -22,10 +20,9 @@ Fonctionnement :
   proche qui respecte la règle (par exemple les assists neutres sont
   plafonnés à 4 fois les kills saisis), et l'ajustement est affiché.
 - Le bouton « Prédire » affiche la probabilité pour cette partie,
-  l'exactitude globale du modèle (71,8 %) à part, un graphique qui
-  situe l'écart d'or de la partie dans la distribution
-  d'entraînement, et ajoute la prédiction à l'historique
-  (``historique_predictions.csv`` à la racine du projet). Si des
+  l'exactitude globale du modèle (71,1 %) à part, et ajoute la
+  prédiction à l'historique (``historique_predictions.csv`` à la
+  racine du projet). Si des
   champs sont laissés vides, un avertissement rappelle que le
   résultat peut être moins fiable, car il repose en partie sur les
   valeurs moyennes.
@@ -39,12 +36,10 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import streamlit as st
 
-from donnees import ajouter_ecarts_relatifs, charger_donnees_propres
+from donnees import charger_donnees_propres
 from exceptions import ModeleIntrouvableError
 from modele import charger_metadonnees, charger_modele, separer_donnees
 
@@ -52,9 +47,6 @@ from modele import charger_metadonnees, charger_modele, separer_donnees
 NIVEAU_MAX = 18        # niveau maximum dans League of Legends
 TOURS_MAX = 11         # 11 tours par équipe
 ASSISTS_PAR_KILL_MAX = 4  # un kill donne des assists à 4 coéquipiers au plus
-
-# Colonnes calculées, jamais demandées à l'utilisateur.
-ECARTS_CALCULES = ("ecartOrRelatif", "ecartXpRelatif")
 
 # Libellés affichés dans l'interface, dans l'ordre des métadonnées.
 LIBELLES = {
@@ -66,9 +58,7 @@ LIBELLES = {
     "blueDragons": "Dragons (bleu)",
     "blueHeralds": "Hérauts (bleu)",
     "blueTowersDestroyed": "Tours détruites (bleu)",
-    "blueTotalGold": "Or total (bleu)",
     "blueAvgLevel": "Niveau moyen (bleu)",
-    "blueTotalExperience": "XP totale (bleu)",
     "blueTotalMinionsKilled": "Sbires tués (bleu)",
     "blueTotalJungleMinionsKilled": "Sbires de la jungle tués (bleu)",
     "redWardsDestroyed": "Wards détruites (rouge)",
@@ -76,9 +66,7 @@ LIBELLES = {
     "redDragons": "Dragons (rouge)",
     "redHeralds": "Hérauts (rouge)",
     "redTowersDestroyed": "Tours détruites (rouge)",
-    "redTotalGold": "Or total (rouge)",
     "redAvgLevel": "Niveau moyen (rouge)",
-    "redTotalExperience": "XP totale (rouge)",
     "redTotalMinionsKilled": "Sbires tués (rouge)",
     "redTotalJungleMinionsKilled": "Sbires de la jungle tués (rouge)",
 }
@@ -88,22 +76,15 @@ LIBELLES = {
 MOYENNES_SECOURS = {
     "blueWardsDestroyed": 2.85, "blueFirstBlood": 0.50, "blueKills": 6.18,
     "blueDeaths": 6.14, "blueAssists": 6.64, "blueDragons": 0.36,
-    "blueHeralds": 0.19, "blueTowersDestroyed": 0.05, "blueTotalGold": 16500.31,
-    "blueAvgLevel": 6.92, "blueTotalExperience": 17927.07,
+    "blueHeralds": 0.19, "blueTowersDestroyed": 0.05,
+    "blueAvgLevel": 6.92,
     "blueTotalMinionsKilled": 216.69, "blueTotalJungleMinionsKilled": 50.46,
     "redWardsDestroyed": 2.73, "redAssists": 6.67, "redDragons": 0.41,
-    "redHeralds": 0.16, "redTowersDestroyed": 0.05, "redTotalGold": 16492.63,
-    "redAvgLevel": 6.93, "redTotalExperience": 17969.14,
+    "redHeralds": 0.16, "redTowersDestroyed": 0.05,
+    "redAvgLevel": 6.93,
     "redTotalMinionsKilled": 217.40, "redTotalJungleMinionsKilled": 51.30,
 }
 
-# Distribution de secours de l'écart d'or relatif (20 tranches de -0,30 à 0,33,
-# mêmes données d'entraînement que les moyennes ci-dessus).
-HISTO_SECOURS_BORDS = [-0.3, -0.268, -0.237, -0.205, -0.174, -0.142, -0.111,
-                       -0.079, -0.048, -0.017, 0.015, 0.047, 0.078, 0.109,
-                       0.141, 0.173, 0.204, 0.235, 0.267, 0.299, 0.33]
-HISTO_SECOURS_COMPTES = [2, 1, 13, 42, 140, 307, 574, 902, 1227, 1397, 1285,
-                         932, 572, 279, 149, 52, 21, 7, 0, 1]
 
 
 class Variable(ABC):
@@ -170,18 +151,14 @@ def _pas(nom):
     """Le pas des flèches de la zone de saisie, selon la variable."""
     if nom in ("blueAvgLevel", "redAvgLevel"):
         return 0.1
-    if "Gold" in nom or "Experience" in nom:
-        return 100.0
     return 1.0
 
 
 def construire_variables(metadonnees, moyennes):
-    """Les 23 champs, dans l'ordre des métadonnées, écarts exclus."""
+    """Les 19 champs, dans l'ordre des métadonnées."""
     infos = {v["nom"]: v for v in metadonnees["variables"]}
     variables = []
     for nom in metadonnees["colonnes"]:
-        if nom in ECARTS_CALCULES:
-            continue  # calculés, jamais demandés
         info = infos[nom]
         if info["type"] == "categorielle":
             if nom == "blueFirstBlood":
@@ -203,10 +180,10 @@ def construire_variables(metadonnees, moyennes):
 
 @st.cache_data
 def charger_statistiques_entrainement():
-    """Moyennes neutres et distribution de l'écart d'or (jeu d'entraînement).
+    """Moyennes neutres du jeu d'entraînement.
 
-    Retourne (moyennes, bords, comptes, ok) ; si le CSV est introuvable,
-    ``ok`` vaut False et les valeurs de secours sont utilisées.
+    Retourne (moyennes, ok) ; si le CSV est introuvable, ``ok`` vaut
+    False et les valeurs de secours sont utilisées.
     """
     try:
         donnees = charger_donnees_propres()
@@ -214,13 +191,9 @@ def charger_statistiques_entrainement():
         moyennes = {
             nom: float(x_train[nom].mean()) for nom in LIBELLES
         }
-        comptes, bords = np.histogram(
-            x_train["ecartOrRelatif"], bins=20, range=(-0.30, 0.33)
-        )
-        return moyennes, [float(b) for b in bords], [int(c) for c in comptes], True
+        return moyennes, True
     except Exception:
-        return (dict(MOYENNES_SECOURS), list(HISTO_SECOURS_BORDS),
-                list(HISTO_SECOURS_COMPTES), False)
+        return dict(MOYENNES_SECOURS), False
 
 
 def reparer_valeurs_neutres(valeurs, saisies):
@@ -348,17 +321,6 @@ def erreurs_bloquantes(valeurs):
                 f"({valeurs[total]}) — impossible."
             )
 
-    # Or et XP : strictement positifs (une équipe ne peut pas avoir 0 or ou 0 XP).
-    for nom in ("blueTotalGold", "redTotalGold",
-                "blueTotalExperience", "redTotalExperience"):
-        if valeurs[nom] == 0:
-            erreurs.append(f"{LIBELLES[nom]} : 0 — impossible, la valeur est nulle.")
-        elif valeurs[nom] < 0:
-            erreurs.append(
-                f"{LIBELLES[nom]} : {valeurs[nom]} — impossible, "
-                "la valeur ne peut pas être négative."
-            )
-
     # Tours détruites : 11 au maximum par équipe.
     for nom in ("blueTowersDestroyed", "redTowersDestroyed"):
         if valeurs[nom] > TOURS_MAX:
@@ -398,25 +360,9 @@ def avertissements_hors_intervalle(variables, valeurs):
 
 
 def construire_ligne(valeurs, colonnes):
-    """Une ligne de 25 colonnes, dans l'ordre du modèle, écarts calculés."""
+    """Une ligne de 19 colonnes, dans l'ordre du modèle."""
     ligne = pd.DataFrame([valeurs])
-    ligne = ajouter_ecarts_relatifs(ligne)
     return ligne[colonnes]
-
-
-def tracer_ecart_or(bords, comptes, ecart_actuel):
-    """Histogramme de l'écart d'or (entraînement) + point de cette partie."""
-    centres = [(bords[i] + bords[i + 1]) / 2 for i in range(len(comptes))]
-    largeurs = [bords[i + 1] - bords[i] for i in range(len(comptes))]
-    fig, ax = plt.subplots()
-    ax.bar(centres, comptes, width=largeurs, color="#4a7ec2", edgecolor="white")
-    ax.axvline(ecart_actuel, color="red", linewidth=2,
-               label=f"Cette partie ({ecart_actuel:+.1%})")
-    ax.set_xlabel("Écart d'or relatif : (or bleu − or rouge) / (or bleu + or rouge)")
-    ax.set_ylabel("Nombre de parties d'entraînement")
-    ax.set_title("Où se situe l'écart d'or de cette partie ?")
-    ax.legend()
-    return fig
 
 
 def chemin_historique():
@@ -433,14 +379,12 @@ def charger_historique():
     return pd.DataFrame()
 
 
-def ajouter_a_historique(valeurs, ecart_or, ecart_xp, probabilite):
+def ajouter_a_historique(valeurs, probabilite):
     """Ajoute une prédiction à l'historique (CSV). Retourne False si
     l'enregistrement échoue (par exemple dossier en lecture seule) :
     la prédiction reste affichée, seul l'historique est perdu."""
     ligne = {"horodatage": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     ligne.update(valeurs)
-    ligne["ecartOrRelatif"] = ecart_or
-    ligne["ecartXpRelatif"] = ecart_xp
     ligne["probabilite_bleue"] = probabilite
     ligne["prediction"] = ("victoire bleue" if probabilite >= 0.5
                            else "défaite bleue")
@@ -455,13 +399,12 @@ def ajouter_a_historique(valeurs, ecart_or, ecart_xp, probabilite):
 
 
 class Application:
-    """L'application : le modèle, les métadonnées et les 23 champs."""
+    """L'application : le modèle, les métadonnées et les 19 champs."""
 
     def __init__(self):
         self.modele = charger_modele()
         self.metadonnees = charger_metadonnees()
-        (self.moyennes, self.bords, self.comptes,
-         self.stats_ok) = charger_statistiques_entrainement()
+        self.moyennes, self.stats_ok = charger_statistiques_entrainement()
         self.variables = construire_variables(self.metadonnees, self.moyennes)
 
     def executer(self):
@@ -477,8 +420,8 @@ class Application:
         
         if not self.stats_ok:
             st.warning("Données d'entraînement introuvables : les valeurs "
-                       "neutres et le graphique utilisent les valeurs de "
-                       "secours enregistrées dans le code.")
+                       "neutres utilisent les valeurs de secours enregistrées "
+                       "dans le code.")
 
         valeurs_brutes = self._afficher_saisie()
 
@@ -488,7 +431,7 @@ class Application:
         self._afficher_historique()
 
     def _afficher_saisie(self):
-        """Les 23 champs, équipe bleue à gauche, équipe rouge à droite."""
+        """Les 19 champs, équipe bleue à gauche, équipe rouge à droite."""
         valeurs_brutes = {}
         col_bleu, col_rouge = st.columns(2)
         with col_bleu:
@@ -529,8 +472,6 @@ class Application:
 
         ligne = construire_ligne(valeurs, self.metadonnees["colonnes"])
         probabilite = float(self.modele.predict_proba(ligne)[0][1])
-        ecart_or = float(ligne.iloc[0]["ecartOrRelatif"])
-        ecart_xp = float(ligne.iloc[0]["ecartXpRelatif"])
 
         message = message_valeurs_manquantes(
             [nom for nom, brut in valeurs_brutes.items() if brut is None])
@@ -549,11 +490,7 @@ class Application:
             "de test — ce chiffre décrit le modèle en général, "
             "pas cette partie-ci."
         )
-        st.info(f"Écarts calculés automatiquement : or {ecart_or:+.1%}, "
-                f"XP {ecart_xp:+.1%}.")
-        st.pyplot(tracer_ecart_or(self.bords, self.comptes, ecart_or))
-
-        if not ajouter_a_historique(valeurs, ecart_or, ecart_xp, probabilite):
+        if not ajouter_a_historique(valeurs, probabilite):
             st.warning("Prédiction calculée, mais l'historique n'a pas pu "
                        "être enregistré (dossier en lecture seule ?).")
 

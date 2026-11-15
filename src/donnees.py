@@ -22,7 +22,14 @@ COLONNES_A_RETIRER: list[str] = [
     "blueGoldPerMin", "blueCSPerMin", "redGoldPerMin", "redCSPerMin",
     "redGoldDiff", "redExperienceDiff",
     "blueWardsPlaced", "redWardsPlaced", "blueEliteMonsters", "redEliteMonsters",
-    "blueGoldDiff", "blueExperienceDiff"
+    "blueGoldDiff", "blueExperienceDiff",
+    # Modèle simple (2026-11-14) : l'or et l'XP sont des résumés de
+    # tout le reste (kills, assists, farm, objectifs) et ils sont
+    # très corrélés aux autres variables (kills <-> or bleu : 0,889).
+    # Les garder fausse les coefficients : par exemple blueKills
+    # devenait négatif. On les retire donc du modèle.
+    "blueTotalGold", "redTotalGold",
+    "blueTotalExperience", "redTotalExperience",
 ]
 
 
@@ -136,7 +143,13 @@ def charger_donnees_propres(chemin: str = CHEMIN_CSV) -> pd.DataFrame:
     """Charge le CSV puis le nettoie.
 
     Reçoit : le chemin du CSV (celui du projet par défaut).
-    Renvoie : le DataFrame nettoyé.
+    Renvoie : le DataFrame nettoyé (19 variables + la cible blueWins).
     Lève : DonneeInvalideError si le fichier ou une colonne à retirer est absent.
+
+    Modèle simple (2026-11-14) : on n'ajoute plus les écarts relatifs
+    d'or et d'XP, car ils sont calculés à partir de l'or et de l'XP,
+    qui ne font plus partie du modèle. La fonction
+    ajouter_ecarts_relatifs reste disponible dans ce fichier pour
+    l'exploration, mais elle n'est plus appelée ici.
     """
-    return ajouter_ecarts_relatifs(nettoyer_donnees(charger_donnees(chemin)))
+    return nettoyer_donnees(charger_donnees(chemin))

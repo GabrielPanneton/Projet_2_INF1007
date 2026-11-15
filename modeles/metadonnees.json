@@ -9,9 +9,7 @@
     "blueDragons",
     "blueHeralds",
     "blueTowersDestroyed",
-    "blueTotalGold",
     "blueAvgLevel",
-    "blueTotalExperience",
     "blueTotalMinionsKilled",
     "blueTotalJungleMinionsKilled",
     "redWardsDestroyed",
@@ -19,13 +17,9 @@
     "redDragons",
     "redHeralds",
     "redTowersDestroyed",
-    "redTotalGold",
     "redAvgLevel",
-    "redTotalExperience",
     "redTotalMinionsKilled",
-    "redTotalJungleMinionsKilled",
-    "ecartOrRelatif",
-    "ecartXpRelatif"
+    "redTotalJungleMinionsKilled"
   ],
   "variables": [
     {
@@ -83,22 +77,10 @@
       "max": 4.0
     },
     {
-      "nom": "blueTotalGold",
-      "type": "numerique",
-      "min": 12292.0,
-      "max": 23701.0
-    },
-    {
       "nom": "blueAvgLevel",
       "type": "numerique",
       "min": 5.2,
       "max": 8.0
-    },
-    {
-      "nom": "blueTotalExperience",
-      "type": "numerique",
-      "min": 11286.0,
-      "max": 22224.0
     },
     {
       "nom": "blueTotalMinionsKilled",
@@ -147,22 +129,10 @@
       "max": 2.0
     },
     {
-      "nom": "redTotalGold",
-      "type": "numerique",
-      "min": 11212.0,
-      "max": 22732.0
-    },
-    {
       "nom": "redAvgLevel",
       "type": "numerique",
       "min": 4.8,
       "max": 8.0
-    },
-    {
-      "nom": "redTotalExperience",
-      "type": "numerique",
-      "min": 10465.0,
-      "max": 21967.0
     },
     {
       "nom": "redTotalMinionsKilled",
@@ -175,21 +145,9 @@
       "type": "numerique",
       "min": 4.0,
       "max": 92.0
-    },
-    {
-      "nom": "ecartOrRelatif",
-      "type": "numerique",
-      "min": -0.2939803614629287,
-      "max": 0.32410050592125716
-    },
-    {
-      "nom": "ecartXpRelatif",
-      "type": "numerique",
-      "min": -0.2635220708615204,
-      "max": 0.28309642061996915
     }
   ],
   "metrique": "exactitude",
-  "exactitude_modele": 0.7176113360323887,
+  "exactitude_modele": 0.7105263157894737,
   "exactitude_reference": 0.5010121457489879
 }
