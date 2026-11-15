@@ -19,10 +19,15 @@ Fonctionnement :
   contredit une valeur saisie, elle est ajustée à la valeur la plus
   proche qui respecte la règle (par exemple les assists neutres sont
   plafonnés à 4 fois les kills saisis), et l'ajustement est affiché.
+- Un bouton « Générer une partie d'exemple » en haut de la page
+  remplit tous les champs avec une partie plausible où l'équipe
+  bleue domine (9 kills, 3 morts, 1 dragon, 1 tour), pour tester
+  la prédiction sans rien saisir.
 - Le bouton « Prédire » affiche la probabilité pour cette partie,
-  l'exactitude globale du modèle (71,1 %) à part, et ajoute la
-  prédiction à l'historique (``historique_predictions.csv`` à la
-  racine du projet). Si des
+  l'exactitude globale du modèle (71,1 %) à part, un graphique qui
+  montre ce qui fait pencher la prédiction (la contribution de
+  chaque variable au score), et ajoute la prédiction à l'historique
+  (``historique_predictions.csv`` à la racine du projet). Si des
   champs sont laissés vides, un avertissement rappelle que le
   résultat peut être moins fiable, car il repose en partie sur les
   valeurs moyennes.
@@ -36,6 +41,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
@@ -85,6 +91,54 @@ MOYENNES_SECOURS = {
     "redTotalMinionsKilled": 217.40, "redTotalJungleMinionsKilled": 51.30,
 }
 
+# Une partie d'exemple plausible, où l'équipe bleue domine : 9 kills
+# contre 3 morts, 1 dragon et 1 tour détruite. Le modèle lui donne
+# environ 92 % de chances de gagner. Les valeurs des listes
+# déroulantes sont les choix affichés ("Oui"/"Non", "0"/"1"), celles
+# des zones numériques sont des nombres.
+PARTIE_EXEMPLE = {
+    "blueWardsDestroyed": 3.0, "blueFirstBlood": "Oui", "blueKills": 9.0,
+    "blueDeaths": 3.0, "blueAssists": 9.0, "blueDragons": "1",
+    "blueHeralds": "0", "blueTowersDestroyed": 1.0, "blueAvgLevel": 7.2,
+    "blueTotalMinionsKilled": 230.0, "blueTotalJungleMinionsKilled": 55.0,
+    "redWardsDestroyed": 2.0, "redAssists": 4.0, "redDragons": "0",
+    "redHeralds": "0", "redTowersDestroyed": 0.0, "redAvgLevel": 6.8,
+    "redTotalMinionsKilled": 210.0, "redTotalJungleMinionsKilled": 48.0,
+}
+
+@st.cache_data
+def charger_parties_exemples():
+    """Les parties d'entraînement, pour en tirer une au hasard.
+
+    Le @st.cache_data fait que le CSV n'est chargé qu'une seule
+    fois, pas à chaque clic sur le bouton.
+    """
+    donnees = charger_donnees_propres()
+    x_train, _, y_train, _ = separer_donnees(donnees)
+    parties = x_train.copy()
+    parties["blueWins"] = y_train.values
+    return parties
+
+
+def choisir_partie_aleatoire():
+    """Tire une vraie partie au hasard, prête à mettre dans les champs.
+
+    Renvoie (valeurs, victoire_reelle) : valeurs est un dictionnaire
+    avec les 19 champs, victoire_reelle est True si l'équipe bleue
+    a vraiment gagné cette partie-là.
+    """
+    parties = charger_parties_exemples()
+    partie = parties.sample(1).iloc[0]
+    valeurs = {}
+    for nom in LIBELLES:
+        valeur = partie[nom]
+        if nom == "blueFirstBlood":
+            valeurs[nom] = "Oui" if valeur == 1 else "Non"
+        elif nom in ("blueDragons", "blueHeralds", "redDragons", "redHeralds"):
+            valeurs[nom] = "1" if valeur == 1 else "0"
+        else:
+            valeurs[nom] = float(valeur)
+    return valeurs, bool(partie["blueWins"])
 
 
 class Variable(ABC):
@@ -126,6 +180,7 @@ class VariableNumerique(Variable):
             f"{self.libelle} ({self.nom})",
             value=None,
             step=self.pas,
+            key=f"saisie_{self.nom}",
             help=f"Vide = valeur neutre ({self.neutre:.2f}). "
                  f"Intervalle observé : {self.minimum} à {self.maximum}.",
         )
@@ -141,7 +196,10 @@ class VariableCategorielle(Variable):
         self.options = options
 
     def afficher(self):
-        choix = st.selectbox(f"{self.libelle} ({self.nom})", self.options)
+        choix = st.selectbox(
+            f"{self.libelle} ({self.nom})", self.options,
+            key=f"saisie_{self.nom}",
+        )
         if choix == "Non renseigné":
             return None
         return self.CORRESPONDANCE[choix]
@@ -365,6 +423,60 @@ def construire_ligne(valeurs, colonnes):
     return ligne[colonnes]
 
 
+def calculer_contributions(modele, colonnes, valeurs):
+    """Contribution de chaque variable au score z de cette partie.
+
+    Pour une régression logistique avec normalisation, la
+    contribution d'une variable vaut :
+
+        coefficient × (valeur − moyenne) / écart-type
+
+    La somme des contributions + l'intercept donne z, et la
+    probabilité vaut 1 / (1 + exp(−z)). Une contribution positive
+    pousse vers la victoire bleue, une contribution négative vers
+    la défaite bleue. Une variable à sa moyenne (valeur neutre)
+    contribue 0.
+
+    Reçoit : le modèle (Pipeline), les colonnes dans l'ordre du
+    modèle, et les valeurs complétées de la partie.
+    Renvoie : une liste de (libellé, contribution), triée de la
+    contribution la plus positive à la plus négative.
+    """
+    normalisation = modele.named_steps["normalisation"]
+    regression = modele.named_steps["regression"]
+    contributions = []
+    for nom, coef, moyenne, ecart_type in zip(
+        colonnes, regression.coef_[0],
+        normalisation.mean_, normalisation.scale_,
+    ):
+        contribution = float(coef * (valeurs[nom] - moyenne) / ecart_type)
+        contributions.append((LIBELLES[nom], contribution))
+    contributions.sort(key=lambda item: item[1], reverse=True)
+    return contributions
+
+
+def tracer_contributions(contributions):
+    """Barres horizontales des contributions au score.
+
+    En vert, ce qui pousse vers la victoire bleue ; en rouge, ce
+    qui pousse vers la défaite bleue. La barre la plus positive
+    est en haut du graphique.
+    """
+    libelles = [libelle for libelle, _ in contributions]
+    valeurs_contrib = [contribution for _, contribution in contributions]
+    couleurs = ["#2e8b57" if v >= 0 else "#c0392b" for v in valeurs_contrib]
+    fig, ax = plt.subplots(figsize=(6.4,3.6))
+    ax.barh(libelles, valeurs_contrib, color=couleurs)
+    ax.axvline(0, color="black", linewidth=1)
+    ax.set_xlabel("Contribution au score (z) : + = pour la victoire bleue, "
+                  "- = contre la victoire bleue", fontsize=9)
+    ax.set_title("Qu'est-ce qui fait pencher la prédiction ?", fontsize=11)
+    ax.tick_params(axis="y", labelsize=8)
+    ax.invert_yaxis()
+    fig.tight_layout()
+    return fig
+
+
 def chemin_historique():
     """Le fichier CSV de l'historique, à la racine du projet."""
     racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -417,6 +529,17 @@ class Application:
         st.write("Remplissez les statistiques de la partie à 10 minutes. "
                  "Un champ vide prend la valeur neutre (moyenne "
                  "d'entraînement) : elle n'influence pas la prédiction.")
+
+        if st.button("🎲 Générer une partie d'exemple"):
+            try:
+                valeurs, victoire_reelle = choisir_partie_aleatoire()
+            except Exception:
+                valeurs, victoire_reelle = PARTIE_EXEMPLE, None
+            for nom, valeur in valeurs.items():
+                st.session_state[f"saisie_{nom}"] = valeur
+            st.session_state["victoire_reelle_exemple"] = victoire_reelle
+            st.rerun()
+
         
         if not self.stats_ok:
             st.warning("Données d'entraînement introuvables : les valeurs "
@@ -484,12 +607,25 @@ class Application:
         st.write("Prédiction du modèle : "
                  + ("victoire bleue" if probabilite >= 0.5
                     else "défaite bleue"))
+        victoire_reelle = st.session_state.get("victoire_reelle_exemple")
+        if victoire_reelle is not None:
+            bonne_prediction = (probabilite >= 0.5) == victoire_reelle
+            st.write("Vraie issue de cette partie : "
+                    + ("victoire bleue" if victoire_reelle
+                        else "défaite bleue")
+                    + (" — le modèle avait raison ✅" if bonne_prediction
+                        else " — le modèle s'était trompé ❌"))
+
         st.caption(
             f"Exactitude globale du modèle : "
             f"{self.metadonnees['exactitude_modele']:.1%} sur 1 976 parties "
             "de test — ce chiffre décrit le modèle en général, "
             "pas cette partie-ci."
         )
+        contributions = calculer_contributions(
+            self.modele, self.metadonnees["colonnes"], valeurs
+        )
+        st.pyplot(tracer_contributions(contributions))
         if not ajouter_a_historique(valeurs, probabilite):
             st.warning("Prédiction calculée, mais l'historique n'a pas pu "
                        "être enregistré (dossier en lecture seule ?).")
