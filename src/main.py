@@ -1,7 +1,10 @@
 import os
 import matplotlib.pyplot as plt
-from donnees import charger_donnees, nettoyer_donnees, trouver_redondances, ajouter_ecarts_relatifs, charger_donnees_propres
-from modele import separer_donnees, calculer_reference, entrainer_modele, evaluer_modele, calculer_matrice_confusion
+from donnees import charger_donnees, nettoyer_donnees, trouver_redondances, ajouter_ecarts_relatifs, charger_donnees_propres, augmenter_donnees
+from modele import (
+    calculer_reference, construire_metadonnees, entrainer_modele,
+    evaluer_modele, sauvegarder_metadonnees, sauvegarder_modele, separer_donnees, calculer_matrice_confusion
+)
 import numpy as np
 import pandas as pd
 import joblib
@@ -30,11 +33,7 @@ print(calculer_matrice_confusion(modele, X_test, y_test))"""
 
 ############################
 
-from donnees import charger_donnees_propres, augmenter_donnees
-from modele import (
-    calculer_reference, construire_metadonnees, entrainer_modele,
-    evaluer_modele, sauvegarder_metadonnees, sauvegarder_modele, separer_donnees,
-)
+
 
 df = charger_donnees_propres()
 X_train, X_test, y_train, y_test = separer_donnees(df)
