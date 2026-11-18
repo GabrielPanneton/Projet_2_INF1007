@@ -133,7 +133,7 @@ PARTIE_EXEMPLE = {
     "redTotalMinionsKilled": 210.0, "redTotalJungleMinionsKilled": 48.0,
 }
 
-@st.cache_data
+@st.cache_data # lu une fois garder en memoire
 def charger_parties_exemples():
     """Les parties d'entraînement, pour en tirer une au hasard.
 

@@ -58,7 +58,7 @@ print(redondances.to_string())
 
 ################# Nettoyage #############
 
-df = ajouter_ecarts_relatifs(nettoyer_donnees(df))
+df = ajouter_ecarts_relatifs(df)
 
 #print(df)
 print(df.shape)  
