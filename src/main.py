@@ -55,8 +55,9 @@ print(modele)
 
 ##########################
 
-une_partie = X_test.sample(1)
-prob_bleue = modele.predict_proba(une_partie)[0][1]
-print(f"{prob_bleue:.0%} de chances de gagner")
-print("Vrai résultat :", y_test.loc[une_partie.index[0]])
+if __name__ == "__main__":
+    une_partie = X_test.sample(1)
+    prob_bleue = modele.predict_proba(une_partie)[0][1]
+    print(f"{prob_bleue:.0%} de chances de gagner")
+    print("Vrai résultat :", y_test.loc[une_partie.index[0]])
 
