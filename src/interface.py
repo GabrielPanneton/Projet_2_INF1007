@@ -40,6 +40,10 @@ Fonctionnement :
   à 0, personne n'a fait de kill, donc le premier sang ne
   peut être ni « Oui » ni « Non » : il doit rester sur
   « Non renseigné », sinon la prédiction est bloquée.
+  S'il n'est pas renseigné et qu'une seule équipe a fait
+  des kills (par exemple 1 kill bleu et 0 mort bleue), il
+  est déduit : mis sur cette équipe-là, et l'ajustement
+  est affiché. Un choix explicite n'est jamais écrasé.
 - Nombres entiers : les kills, morts, assists, tours,
   sbires et wards sont des compteurs et n'acceptent pas
   les virgules (le champ affiche un entier et une valeur
@@ -347,7 +351,9 @@ def reparer_valeurs_neutres(valeurs, saisies):
     neutres sont impossibles si l'équipe rouge n'a fait qu'1 kill
     (1 mort bleue). On ajuste alors la valeur neutre, jamais une
     valeur saisie : on prend la valeur la plus proche de la moyenne
-    qui respecte la règle. Retourne (valeurs, ajustements), où
+    qui respecte la règle. Le premier sang neutre est aussi
+    déduit quand une seule équipe a fait des kills.
+    Retourne (valeurs, ajustements), où
     ``ajustements`` liste les modifications faites, à afficher.
     """
     ajustements = []
@@ -395,6 +401,27 @@ def reparer_valeurs_neutres(valeurs, saisies):
                     f"{LIBELLES[total]} non renseignés : ajustés à "
                     f"{valeurs[jungle]:.0f}, comme les sbires de la jungle."
                 )
+
+    # Premier sang : si une seule équipe a fait des kills, c'est
+    # forcément elle qui a fait le premier sang (les morts bleues
+    # sont les kills rouges). On ne déduit que si le premier sang
+    # n'a pas été renseigné : un choix explicite n'est jamais
+    # écrasé.
+    if "blueFirstBlood" not in saisies:
+        if valeurs["blueDeaths"] == 0 and valeurs["blueKills"] >= 1:
+            valeurs["blueFirstBlood"] = 1.0
+            ajustements.append(
+                "Premier sang non renseigné : mis à « Oui » (bleu), "
+                "car l'équipe bleue a fait des kills sans mourir — "
+                "le premier sang est forcément bleu."
+            )
+        elif valeurs["blueKills"] == 0 and valeurs["blueDeaths"] >= 1:
+            valeurs["blueFirstBlood"] = 0.0
+            ajustements.append(
+                "Premier sang non renseigné : mis à « Non » (rouge), "
+                "car l'équipe bleue n'a fait aucun kill — "
+                "le premier sang est forcément rouge."
+            )
     return valeurs, ajustements
 
 

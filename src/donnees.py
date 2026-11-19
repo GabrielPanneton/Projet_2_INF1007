@@ -112,9 +112,7 @@ def trouver_redondances(
 
     colonnes = ["colonne_a", "colonne_b", "correlation", "relation"]
     resultat = pd.DataFrame(resultats, columns=colonnes)
-    return resultat.reindex(
-        resultat["correlation"].abs().sort_values(ascending=False).index
-    ).reset_index(drop=True)
+    return resultat.reindex(resultat["correlation"].abs().sort_values(ascending=False).index).reset_index(drop=True)
 
 ############################
 
