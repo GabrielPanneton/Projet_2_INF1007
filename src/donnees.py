@@ -142,7 +142,7 @@ def charger_donnees_propres(chemin: str = CHEMIN_CSV) -> pd.DataFrame:
 
     Reçoit : le chemin du CSV (celui du projet par défaut).
     Renvoie : le DataFrame nettoyé (19 variables + la cible blueWins).
-    Lève : DonneeInvalideError si le fichier ou une colonne à retirer est absent.
+    Lève : DonneeInvalideError si une colonne à retirer est absent et FileNotFoundError si le fichier est absent.
 
     Modèle simple (2026-11-14) : on n'ajoute plus les écarts relatifs
     d'or et d'XP, car ils sont calculés à partir de l'or et de l'XP,
@@ -152,7 +152,7 @@ def charger_donnees_propres(chemin: str = CHEMIN_CSV) -> pd.DataFrame:
     """
     return nettoyer_donnees(charger_donnees(chemin))
 
-COLONNES_ECHANGE = {
+COLONNES_ECHANGE: dict[str, str] = {
     "blueKills": "blueDeaths", "blueDeaths": "blueKills",
     "blueAssists": "redAssists", "redAssists": "blueAssists",
     "blueDragons": "redDragons", "redDragons": "blueDragons",
@@ -169,7 +169,7 @@ COLONNES_ECHANGE = {
 }
 
 
-def echanger_equipes(donnees):
+def echanger_equipes(donnees: pd.DataFrame) -> pd.DataFrame:
     """Copie des parties avec bleu et rouge échangés.
 
     Le premier sang n'a pas d'équivalent rouge : il s'inverse
@@ -183,7 +183,7 @@ def echanger_equipes(donnees):
     return echangees
 
 
-def augmenter_donnees(x_train, y_train):
+def augmenter_donnees(x_train: pd.DataFrame, y_train: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
     """Double l'entraînement : chaque partie + sa version échangée.
 
     À appeler APRÈS separer_donnees, sur le train seulement.

@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from donnees import charger_donnees, nettoyer_donnees, trouver_redondances, ajouter_ecarts_relatifs
+from donnees import charger_donnees, trouver_redondances, ajouter_ecarts_relatifs
 import numpy as np
 import pandas as pd
 
@@ -83,7 +83,7 @@ axes[0].set_ylabel("Nombre de parties")
 df.boxplot(column="ecartOrRelatif", by="blueWins", ax=axes[1])
 axes[1].set_title("Écart d'or à 10 min selon le résultat")
 axes[1].set_xlabel("blueWins")
-axes[1].set_ylabel("blueGoldDiff")
+axes[1].set_ylabel("Écart d'or relatif")
 
 plt.suptitle("")
 plt.tight_layout()

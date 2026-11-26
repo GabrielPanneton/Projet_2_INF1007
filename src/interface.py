@@ -75,9 +75,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-
+from sklearn.pipeline import Pipeline
 from donnees import charger_donnees_propres
-from exceptions import ModeleIntrouvableError
+from exceptions import DonneeInvalideError, ModeleIntrouvableError
 from modele import charger_metadonnees, charger_modele, separer_donnees
 
 # Règles du jeu utilisées pour les erreurs bloquantes.
@@ -138,7 +138,7 @@ PARTIE_EXEMPLE = {
 }
 
 @st.cache_data # lu une fois garder en memoire
-def charger_parties_exemples():
+def charger_parties_exemples() -> pd.DataFrame:
     """Les parties d'entraînement, pour en tirer une au hasard.
 
     Le @st.cache_data fait que le CSV n'est chargé qu'une seule
@@ -151,7 +151,7 @@ def charger_parties_exemples():
     return parties
 
 
-def choisir_partie_aleatoire():
+def choisir_partie_aleatoire() -> tuple[dict[str, float | str], bool]:
     """Tire une vraie partie au hasard, prête à mettre dans les champs.
 
     On tire une ligne entière au hasard, jamais chaque variable
@@ -178,7 +178,7 @@ def choisir_partie_aleatoire():
     return valeurs, bool(partie["blueWins"])
 
 
-def exemple_genere_inchange(valeurs):
+def exemple_genere_inchange(valeurs: dict[str, float]) -> bool:
     """Vrai si les champs affichent encore la partie générée.
 
     Compare les valeurs complétées actuelles à la partie mise en
@@ -200,7 +200,7 @@ def exemple_genere_inchange(valeurs):
     return True
 
 
-def _cle_saisie(nom):
+def _cle_saisie(nom: str) -> str:
     """La clé d'un champ, avec un numéro de version.
 
     Quand on efface tout, on augmente la version : chaque champ
@@ -220,7 +220,8 @@ class Variable(ABC):
     comme une liste déroulante.
     """
 
-    def __init__(self, nom, libelle, neutre, minimum, maximum):
+    def __init__(self, nom: str, libelle: str, neutre: float, minimum: float, maximum: float) -> None:
+        """Crée un champ avec son nom, son libellé, sa valeur neutre et son intervalle."""
         self.nom = nom
         self.libelle = libelle
         self.neutre = neutre
@@ -228,25 +229,28 @@ class Variable(ABC):
         self.maximum = maximum
 
     @abstractmethod
-    def afficher(self):
+    def afficher(self) -> float | None:
         """Affiche le widget Streamlit, retourne la valeur brute (None si vide)."""
 
-    def completer(self, valeur):
+    def completer(self, valeur: float | None) -> float:
         """Valeur neutre si le champ est vide, sinon la valeur entrée."""
         return self.neutre if valeur is None else valeur
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Représentation courte du champ, utile pour le débogage."""
         return f"{type(self).__name__}({self.nom})"
 
 
 class VariableNumerique(Variable):
     """Un champ numérique : zone de saisie, vide = valeur neutre."""
 
-    def __init__(self, nom, libelle, neutre, minimum, maximum, pas):
+    def __init__(self, nom: str, libelle: str, neutre: float, minimum: float, maximum: float, pas: float) -> None:
+        """Crée un champ numérique avec le pas de saisie."""
         super().__init__(nom, libelle, neutre, minimum, maximum)
         self.pas = pas
 
-    def afficher(self):
+    def afficher(self) -> float | None:
+        """Affiche la zone de saisie numérique et retourne la valeur brute."""
         return st.number_input(
             f"{self.libelle} ({self.nom})",
             value=None,
@@ -263,11 +267,13 @@ class VariableCategorielle(Variable):
 
     CORRESPONDANCE = {"Oui": 1.0, "Non": 0.0, "0": 0.0, "1": 1.0}
 
-    def __init__(self, nom, libelle, neutre, options):
+    def __init__(self, nom: str, libelle: str, neutre: float, options: list[str]) -> None:
+        """Crée un champ catégoriel avec ses options affichées."""
         super().__init__(nom, libelle, neutre, 0, 1)
         self.options = options
 
-    def afficher(self):
+    def afficher(self) -> float | None:
+        """Affiche la liste déroulante et retourne la valeur choisie."""
         choix = st.selectbox(
             f"{self.libelle} ({self.nom})", self.options,
             key=_cle_saisie(self.nom),
@@ -277,7 +283,7 @@ class VariableCategorielle(Variable):
         return self.CORRESPONDANCE[choix]
 
 
-def _pas(nom):
+def _pas(nom: str) -> float:
     """Le pas des flèches de la zone de saisie, selon la variable.
 
     1 (entier) pour les compteurs — kills, morts, assists, tours,
@@ -289,7 +295,7 @@ def _pas(nom):
     return 1
 
 
-def construire_variables(metadonnees, moyennes):
+def construire_variables(metadonnees: dict, moyennes: dict[str, float]) -> list[Variable]:
     """Les 19 champs, dans l'ordre des métadonnées."""
     infos = {v["nom"]: v for v in metadonnees["variables"]}
     variables = []
@@ -313,7 +319,7 @@ def construire_variables(metadonnees, moyennes):
     return variables
 
 
-def charger_statistiques_entrainement(modele=None, colonnes=None):
+def charger_statistiques_entrainement(modele: Pipeline | None = None, colonnes: list[str] | None = None) -> tuple[dict[str, float], bool]:
     """Moyennes neutres : celles du modèle (son StandardScaler).
 
     Ce sont exactement les valeurs qui annulent chaque
@@ -330,7 +336,7 @@ def charger_statistiques_entrainement(modele=None, colonnes=None):
                 )
             }
             return moyennes, True
-        except Exception:
+        except (KeyError, AttributeError, TypeError, ValueError):
             pass
     try:
         donnees = charger_donnees_propres()
@@ -339,11 +345,11 @@ def charger_statistiques_entrainement(modele=None, colonnes=None):
             nom: float(x_train[nom].mean()) for nom in LIBELLES
         }
         return moyennes, True
-    except Exception:
+    except (FileNotFoundError, DonneeInvalideError):
         return dict(MOYENNES_SECOURS), False
 
 
-def reparer_valeurs_neutres(valeurs, saisies):
+def reparer_valeurs_neutres(valeurs: dict[str, float], saisies: set[str]) -> tuple[dict[str, float], list[str]]:
     """Ajuste les valeurs neutres pour respecter les règles du jeu.
 
     Une valeur neutre (moyenne d'entraînement) n'a aucun sens si elle
@@ -425,7 +431,7 @@ def reparer_valeurs_neutres(valeurs, saisies):
     return valeurs, ajustements
 
 
-def message_valeurs_manquantes(manquantes):
+def message_valeurs_manquantes(manquantes: list[str]) -> str | None:
     """Message d'avertissement quand des champs sont vides.
 
     Retourne None si rien ne manque. ``manquantes`` est la liste des
@@ -453,7 +459,7 @@ def message_valeurs_manquantes(manquantes):
     )
 
 
-def erreurs_non_entiers(variables, valeurs_brutes):
+def erreurs_non_entiers(variables: list[Variable], valeurs_brutes: dict[str, float | None]) -> list[str]:
     """Valeurs à virgule pour des compteurs : le calcul n'a pas lieu.
 
     Les kills, morts, assists, tours, sbires et wards sont des
@@ -478,7 +484,7 @@ def erreurs_non_entiers(variables, valeurs_brutes):
     return erreurs
 
 
-def erreurs_bloquantes(valeurs):
+def erreurs_bloquantes(valeurs: dict[str, float]) -> list[str]:
     """Valeurs impossibles selon les règles du jeu : le calcul n'a pas lieu."""
     erreurs = []
 
@@ -551,7 +557,7 @@ def erreurs_bloquantes(valeurs):
     return erreurs
 
 
-def avertissements_hors_intervalle(variables, valeurs):
+def avertissements_hors_intervalle(variables: list[Variable], valeurs: dict[str, float]) -> list[str]:
     """Valeurs hors de l'intervalle observé : avertissement, calcul maintenu."""
     avertissements = []
     for variable in variables:
@@ -568,13 +574,13 @@ def avertissements_hors_intervalle(variables, valeurs):
     return avertissements
 
 
-def construire_ligne(valeurs, colonnes):
+def construire_ligne(valeurs: dict[str, float], colonnes: list[str]) -> pd.DataFrame:
     """Une ligne de 19 colonnes, dans l'ordre du modèle."""
     ligne = pd.DataFrame([valeurs])
     return ligne[colonnes]
 
 
-def calculer_contributions(modele, colonnes, valeurs):
+def calculer_contributions(modele: Pipeline, colonnes: list[str], valeurs: dict[str, float]) -> list[tuple[str, float]]:
     """Contribution de chaque variable au score z de cette partie.
 
     Pour une régression logistique avec normalisation, la
@@ -606,7 +612,7 @@ def calculer_contributions(modele, colonnes, valeurs):
     return contributions
 
 
-def tracer_contributions(contributions):
+def tracer_contributions(contributions: list[tuple[str, float]]) -> plt.Figure:
     """Barres horizontales des contributions au score.
 
     En vert, ce qui pousse vers la victoire bleue ; en rouge, ce
@@ -629,7 +635,7 @@ def tracer_contributions(contributions):
     return fig
 
 
-def tracer_coefficients(coefficients):
+def tracer_coefficients(coefficients: list[tuple[str, float]]) -> plt.Figure:
     """Barres horizontales des coefficients du modèle.
 
     En vert, ce qui pousse vers la victoire bleue ; en rouge, ce
@@ -651,13 +657,13 @@ def tracer_coefficients(coefficients):
     return fig
 
 
-def chemin_historique():
+def chemin_historique() -> str:
     """Le fichier CSV de l'historique, à la racine du projet."""
     racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(racine, "historique_predictions.csv")
 
 
-def charger_historique():
+def charger_historique() -> pd.DataFrame:
     """L'historique des prédictions, ou un tableau vide."""
     chemin = chemin_historique()
     if os.path.exists(chemin):
@@ -665,7 +671,7 @@ def charger_historique():
     return pd.DataFrame()
 
 
-def ajouter_a_historique(valeurs, probabilite):
+def ajouter_a_historique(valeurs: dict[str, float], probabilite: float) -> bool:
     """Ajoute une prédiction à l'historique (CSV). Retourne False si
     l'enregistrement échoue (par exemple dossier en lecture seule) :
     la prédiction reste affichée, seul l'historique est perdu."""
@@ -687,7 +693,8 @@ def ajouter_a_historique(valeurs, probabilite):
 class Application:
     """L'application : le modèle, les métadonnées et les 19 champs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Charge le modèle, les métadonnées, les moyennes et les champs."""
         self.modele = charger_modele()
         self.metadonnees = charger_metadonnees()
         self.moyennes, self.stats_ok = charger_statistiques_entrainement(
@@ -695,7 +702,7 @@ class Application:
         )
         self.variables = construire_variables(self.metadonnees, self.moyennes)
 
-    def executer(self):
+    def executer(self) -> None:
         """Affiche l'interface : un onglet pour prédire, un pour les coefficients."""
 
         st.image("assets/lol.png", use_container_width=True)
@@ -710,7 +717,7 @@ class Application:
         with onglet_coefficients:
             self._afficher_coefficients()
 
-    def _effacer_champs(self):
+    def _effacer_champs(self) -> None:
         """Vide tous les champs : retour a l'etat d'ouverture du site.
 
         On augmente le numéro de version des champs (voir
@@ -729,7 +736,7 @@ class Application:
         )
 
 
-    def _afficher_prediction(self):
+    def _afficher_prediction(self) -> None:
         """Le formulaire de prédiction : exemple, champs, Prédire, historique."""
 
         st.write("Remplissez les statistiques de la partie à 10 minutes. "
@@ -739,7 +746,7 @@ class Application:
         if st.button("🎲 Générer une partie d'exemple"):
             try:
                 valeurs, victoire_reelle = choisir_partie_aleatoire()
-            except Exception:
+            except (FileNotFoundError, DonneeInvalideError, KeyError):
                 valeurs, victoire_reelle = PARTIE_EXEMPLE, None
             for nom, valeur in valeurs.items():
                 st.session_state[_cle_saisie(nom)] = valeur
@@ -763,7 +770,7 @@ class Application:
 
         self._afficher_historique()
 
-    def _afficher_coefficients(self):
+    def _afficher_coefficients(self) -> None:
         """Les coefficients du modèle, pour chaque variable.
 
         Un coefficient indique l'effet d'une augmentation d'un
@@ -811,7 +818,7 @@ class Application:
             )
         )
 
-    def _afficher_saisie(self):
+    def _afficher_saisie(self) -> dict[str, float | None]:
         """Les 19 champs, équipe bleue à gauche, équipe rouge à droite."""
         valeurs_brutes = {}
         col_bleu, col_rouge = st.columns(2)
@@ -827,7 +834,7 @@ class Application:
                     valeurs_brutes[variable.nom] = variable.afficher()
         return valeurs_brutes
 
-    def _predire(self, valeurs_brutes):
+    def _predire(self, valeurs_brutes: dict[str, float | None]) -> None:
         """Valide, calcule les écarts, prédit, affiche et enregistre."""
         valeurs = {v.nom: v.completer(valeurs_brutes[v.nom])
                    for v in self.variables}
@@ -893,7 +900,7 @@ class Application:
             st.warning("Prédiction calculée, mais l'historique n'a pas pu "
                        "être enregistré (dossier en lecture seule ?).")
 
-    def _afficher_historique(self):
+    def _afficher_historique(self) -> None:
         """L'historique des prédictions, lu depuis le CSV."""
         st.subheader("Historique des prédictions")
         historique = charger_historique()
@@ -907,7 +914,7 @@ class Application:
             st.rerun()
 
 
-def main():
+def main() -> None:
     """Point d'entrée de l'application Streamlit."""
     st.set_page_config(page_title="Prédire le gagnant à 10 minutes",
                        layout="wide")
