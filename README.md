@@ -30,19 +30,19 @@ Ce projet prédit la probabilité que l’équipe bleue gagne une partie de Leag
     Métrique : Exactitude
     Modèle : Régression logistique
 
-## Tecnhologie : Streamlit
+## Technologie : Streamlit
     Pour lancer : streamlit run src/interface.py
     Contenu :
         - Champs à remplir
         - Lorsqu'un champ est laissé vide, remplissage automatique avec la moyenne d'entrainement, ce qui n'influence pas le résultat.
-        - Lorsqu'une valeur est hor de l'intervalle pbservé lors de l'entrainement, avertissement, et lorsque la variable est impossible, échec du test.
+        - Lorsqu'une valeur est hors de l'intervalle observé lors de l'entrainement, avertissement, et lorsque la variable est impossible, échec du test.
         - Résultat selon le modèle en pourcentage + conclusion du modèle + pourcentage de précision
-        - Graphique des coefficient des variables
+        - Graphique des coefficients des variables
         - Historique des prédictions
 
 ## Limites :
-    - Lorsque les partie sont serrés, le modèle revient à presqu'un pile ou face, puique dans ce cas il faudrait d'autres variables dans le csv, commes les champions, ou même le winrate des joueurs
-    - le facteur humain, c'est à dire qu'à tou moment un joueur peut décider d'arrêter de jouer et de perdre, ce qui fausse les résultats.
+    - Lorsque les parties sont serrées, le modèle revient à presque un pile ou face, puisque dans ce cas il faudrait d'autres variables dans le csv, comme les champions, ou même le winrate des joueurs
+    - le facteur humain, c'est-à-dire qu'à tout moment un joueur peut décider d'arrêter de jouer et de perdre, ce qui fausse les résultats.
 
 ## Tests et couverture
 - 24 tests logiques dans `tests/test_donnees.py` et `tests/test_modele.py`.
@@ -50,7 +50,7 @@ Ce projet prédit la probabilité que l’équipe bleue gagne une partie de Leag
 - Couverture : 100 % sur la logique testée (`src/donnees.py`, `src/modele.py`, `src/exceptions.py`), mesurée avec `coverage run -m pytest` puis `coverage report --include="src/donnees.py,src/modele.py,src/exceptions.py"`.
 
 ## Outil du chapitre 7 : 
-    Un décorateur utilisé dans interface.py, soit @abstractmethod, qui permet a chaque classe enfant de définir sa propre version de la fonction qui suit.
+    Un décorateur utilisé dans interface.py, soit @abstractmethod, qui permet à chaque classe enfant de définir sa propre version de la fonction qui suit.
     Le tri des contributions utilise une fonction lambda comme clé de tri : `contributions.sort(key=lambda item: item[1], reverse=True)`.
 
 ## Source du Dataset : 
@@ -63,5 +63,5 @@ Ce projet prédit la probabilité que l’équipe bleue gagne une partie de Leag
 
 ## Documentation:
     pandas : The pandas development team, « pandas documentation, » pandas. [En ligne]. Disponible : https://pandas.pydata.org/docs/. [Consulté le : 30 octobre 2026 ].
-    Sickitlearn : Scikit-learn developers, « scikit-learn: machine learning in Python, » scikit-learn. [En ligne]. Disponible : https://scikit-learn.org/stable/. [Consulté le : 6 novembre 2026 ].
+    Scikit-learn : Scikit-learn developers, « scikit-learn: machine learning in Python, » scikit-learn. [En ligne]. Disponible : https://scikit-learn.org/stable/. [Consulté le : 6 novembre 2026 ].
     Streamlit : Streamlit, « Streamlit documentation, » Streamlit. [En ligne]. Disponible : https://docs.streamlit.io/. [Consulté le : 13 novembre 2026 ].
