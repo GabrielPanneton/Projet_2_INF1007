@@ -1,5 +1,5 @@
 # Projet_2_INF1007
-
+Lien du repertoire github : https://github.com/GabrielPanneton/Projet_2_INF1007
 ## Description
 Ce projet prédit la probabilité que l’équipe bleue gagne une partie de League of Legends à partir des statistiques des 10 premières minutes. Le modèle est une régression logistique entraînée sur 9 879 parties. L’interface Streamlit permet de saisir une partie, d’obtenir une probabilité, de voir les contributions des variables et de consulter l’historique des prédictions.
 
